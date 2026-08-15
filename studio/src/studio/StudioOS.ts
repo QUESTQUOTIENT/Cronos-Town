@@ -22,6 +22,7 @@ import { SceneManager } from '../engine/scenes/SceneManager';
 import { SceneRuntime, SceneSerializer, SceneTransitions } from '../engine/scenes/SceneRuntime';
 import { ProjectManager } from '../engine/projects/ProjectManager';
 import { ProjectGraph } from '../engine/projects/ProjectGraph';
+import { StudioProject } from '../engine/projects/StudioProject';
 import { AssetRegistry } from '../engine/assets/AssetRegistry';
 import { AssetImporter } from '../engine/assets/AssetImporter';
 import { WorkspaceManager } from '../engine/workspaces/WorkspaceManager';
@@ -52,6 +53,8 @@ export class StudioOS {
   readonly sceneTransitions = new SceneTransitions();
   readonly projects: ProjectManager;
   readonly graph = new ProjectGraph();
+  /** Canonical authored objects shared by the runtime, studio, and exporter. */
+  readonly studioProject = new StudioProject(this.graph);
   readonly assets: AssetRegistry;
   readonly importer: AssetImporter;
   readonly workspaces: WorkspaceManager;
@@ -141,6 +144,19 @@ export class StudioOS {
     this.graph.addEdge(scene.id, 'sprite-player', 'references');
     // Register the sprite so it's also searchable/inspectable.
     this.assets.register({ id: 'sprite-player', kind: 'sprite', name: 'Player Sprite', source: 'sprites/player.png', metadata: { size: '32' } });
+
+    // These are authored objects, not a second set of editor-only settings.
+    // Runtime systems and exports resolve their links through the same store.
+    this.studioProject.configureNetwork('network-cronos', 'Cronos Mainnet', {
+      chainId: 25, rpcUrl: 'https://evm.cronos.org', explorer: 'https://cronoscan.com', currency: 'CRO', gasToken: 'CRO',
+    });
+    this.studioProject.configureToken('token-gold', 'Cronos Gold', {
+      contract: '0x0000000000000000000000000000000000000000', networkId: 'network-cronos', decimals: 18, symbol: 'GOLD',
+    });
+    this.studioProject.upsert({
+      id: 'economy-main', kind: 'economy', name: 'Main Economy',
+      data: { shopCurrency: 'token-gold', rewardCurrency: 'token-gold' }, references: ['token-gold'],
+    });
   }
 
   /** Set a runtime setting (searchable). */
@@ -187,12 +203,14 @@ export class StudioOS {
     graph: ReturnType<ProjectGraph['serialize']>;
     assets: ReturnType<AssetRegistry['serialize']>;
     scenes: ReturnType<SceneManager['serialize']>;
+    studio: ReturnType<StudioProject['snapshot']>;
   } {
     return {
       project: this.projects.serializeOpen(),
       graph: this.graph.serialize(),
       assets: this.assets.serialize(),
       scenes: this.scenes.serialize(),
+      studio: this.studioProject.snapshot(),
     };
   }
 }

@@ -40,11 +40,22 @@ def build_project_zip(payload):
         custom_files[path] = raw
         return path
 
+    studio_project = payload.get("studioProject")
+    if studio_project is not None:
+        if not isinstance(studio_project, dict) or studio_project.get("format") != "chronos-studio-project" or studio_project.get("version") != 1:
+            raise ValueError("studioProject must be a Chronos Studio Project v1 snapshot.")
+        if not isinstance(studio_project.get("objects"), list):
+            raise ValueError("studioProject.objects must be a list.")
+        # Round-trip through JSON so exported project data is portable and cannot
+        # carry non-JSON values from an embedding client.
+        studio_project = json.loads(json.dumps(studio_project))
+
     export_payload = {
         "customizerSprites": normalize_asset(payload.get("customizerSprites") or {}, "customizer"),
         "mapEditorState": normalize_asset(payload.get("mapEditorState") or {"exterior": [], "interior": {}}, "map-editor"),
+        "studioProject": studio_project,
     }
-    export_payload["version"] = 1
+    export_payload["version"] = 2
     index_path = root / "index.html"
     index = index_path.read_text(encoding="utf-8")
     state_script = "<script>window.CRONOS_TOWN_EXPORT_STATE = " + json.dumps(export_payload, separators=(",", ":")) + ";</script>\n"
@@ -70,6 +81,14 @@ def build_project_zip(payload):
                     archive.write(path, path.relative_to(root).as_posix())
         for relative, raw in custom_files.items():
             archive.writestr(relative, raw)
+        if studio_project is not None:
+            archive.writestr("studio/project.json", json.dumps(studio_project, indent=2, sort_keys=True))
+            archive.writestr(
+                "studio/README.md",
+                "# Chronos Studio Project\n\n"
+                "`project.json` is the canonical authored-object snapshot. The runtime, "
+                "studio, graph, and exported configuration consume these same objects.\n",
+            )
         export_info = {
             "network": "Cronos Mainnet",
             "chainId": 25,

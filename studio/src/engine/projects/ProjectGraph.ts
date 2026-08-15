@@ -13,7 +13,7 @@ export type NodeKind =
   | 'project' | 'world' | 'map' | 'entity' | 'ui-screen' | 'panel' | 'component'
   | 'asset' | 'sprite' | 'tileset' | 'audio'
   | 'quest' | 'dialogue' | 'economy' | 'wallet' | 'token' | 'liquidity-pool'
-  | 'automation' | 'ai-agent' | 'plugin';
+  | 'automation' | 'ai-agent' | 'plugin' | 'network' | 'nft-collection' | 'character';
 
 export interface GraphNode {
   id: string;
@@ -34,6 +34,19 @@ export class ProjectGraph {
 
   addNode(node: GraphNode): void {
     this.nodes.set(node.id, node);
+  }
+
+  /** Insert or update a node without disturbing graph insertion order. */
+  upsertNode(node: GraphNode): void {
+    this.nodes.set(node.id, node);
+  }
+
+  /** Replace all outgoing links from a node (used by canonical object editors). */
+  replaceOutgoing(from: string, links: Array<{ to: string; relation: string }>): void {
+    for (let i = this.edges.length - 1; i >= 0; i -= 1) {
+      if (this.edges[i].from === from) this.edges.splice(i, 1);
+    }
+    for (const link of links) this.addEdge(from, link.to, link.relation);
   }
 
   removeNode(id: string): void {
