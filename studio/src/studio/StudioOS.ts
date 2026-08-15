@@ -24,6 +24,7 @@ import { ProjectManager } from '../engine/projects/ProjectManager';
 import { ProjectGraph } from '../engine/projects/ProjectGraph';
 import { StudioProject } from '../engine/projects/StudioProject';
 import { StudioObjectEditor } from '../engine/projects/StudioObjectEditor';
+import { StudioTransactionEngine } from '../engine/projects/StudioTransaction';
 import { AssetRegistry } from '../engine/assets/AssetRegistry';
 import { AssetImporter } from '../engine/assets/AssetImporter';
 import { WorkspaceManager } from '../engine/workspaces/WorkspaceManager';
@@ -57,6 +58,8 @@ export class StudioOS {
   /** Canonical authored objects shared by the runtime, studio, and exporter. */
   readonly studioProject = new StudioProject(this.graph);
   readonly studioEditor = new StudioObjectEditor(this.studioProject, this.commands);
+  /** v3 governance boundary for previewed/committed revisioned mutations. */
+  readonly transactions = new StudioTransactionEngine(this.studioProject, this.graph);
   readonly assets: AssetRegistry;
   readonly importer: AssetImporter;
   readonly workspaces: WorkspaceManager;
