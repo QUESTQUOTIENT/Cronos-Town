@@ -17,6 +17,7 @@ import type { SceneManager } from '../engine/scenes/SceneManager';
 import type { ProjectManager } from '../engine/projects/ProjectManager';
 import type { WorkspaceManager } from '../engine/workspaces/WorkspaceManager';
 import type { StudioOS } from './StudioOS';
+import type { StudioObjectKind } from '../engine/projects/StudioProject';
 import { layoutDock, simpleRowDock } from '../ui/layout';
 import { StudioColors } from '../ui/theme';
 import { SPRITE_PRESETS } from '../features/sprite-lab/presets';
@@ -50,6 +51,7 @@ export class StudioShell {
 
   private selectedEntity: number | null = null;
   private selectedNodeId: string | null = null;
+  private selectedStudioObjectId: string | null = null;
   private readonly inspector: Inspector;
   private readonly shortcuts = new ShortcutManager();
   private readonly focus = new FocusManager();
@@ -383,6 +385,18 @@ export class StudioShell {
       case 'economy':
         this.renderEconomy(body);
         break;
+      case 'studio-objects':
+        this.renderStudioObjects(body);
+        break;
+      case 'studio-object-editor':
+        this.renderStudioObjectEditor(body);
+        break;
+      case 'network-manager':
+        this.renderNetworkManager(body);
+        break;
+      case 'project-export':
+        this.renderProjectExport(body);
+        break;
       default:
         this.renderGeneric(body, type);
     }
@@ -625,6 +639,150 @@ export class StudioShell {
     xp.innerHTML = `<span class="k">Flipsuite XP</span><span class="v">0</span>`;
     body.appendChild(xp);
     body.appendChild(this.status('info', 'Token Launch + Casino features mount here in the full build.'));
+  }
+
+  /** The creator surface: all authored runtime objects live in StudioProject. */
+  private renderStudioObjects(body: HTMLElement): void {
+    const kinds: StudioObjectKind[] = ['ui', 'npc', 'story', 'quest', 'world', 'network', 'token', 'economy', 'nft-collection', 'character', 'audio', 'automation'];
+    const create = this.mk('select') as HTMLSelectElement;
+    for (const kind of kinds) {
+      const option = document.createElement('option');
+      option.value = kind;
+      option.textContent = `New ${kind}`;
+      create.appendChild(option);
+    }
+    const add = this.mk('button', 'ui-button');
+    add.textContent = '➕ CREATE OBJECT';
+    add.addEventListener('click', () => {
+      const kind = create.value as StudioObjectKind;
+      const id = `${kind}-${Date.now()}`;
+      const data: Record<string, unknown> = kind === 'npc'
+        ? { sprite: 'sprite-player', dialogue: [], schedule: [], relationships: [], personality: 'friendly' }
+        : kind === 'ui' ? { layout: 'gba-20x14', components: [], theme: 'gba-dark' }
+          : kind === 'audio' ? { music: '', ambience: '', volumeGroup: 'world', triggers: [] }
+            : kind === 'quest' ? { objectives: [], rewards: [], consequences: [] } : {};
+      this.os.studioProject.upsert({ id, kind, name: `New ${kind}`, data, references: [] });
+      this.selectedStudioObjectId = id;
+      this.selectedNodeId = id;
+      this.bus.emit('studio:object-created', { id, kind });
+      this.render();
+    });
+    body.append(create, add);
+    const objects = this.os.studioProject.list();
+    if (!objects.length) body.appendChild(this.status('info', 'Create a UI, NPC, quest, network, token, audio zone, or any other runtime object.'));
+    for (const object of objects) {
+      const row = this.mk('div', `row${this.selectedStudioObjectId === object.id ? ' selected' : ''}`);
+      row.textContent = `${object.kind.toUpperCase()}  ${object.name}`;
+      row.title = object.id;
+      row.addEventListener('click', () => {
+        this.selectedStudioObjectId = object.id;
+        this.selectedNodeId = object.id;
+        this.selectedEntity = null;
+        this.bus.emit('editor:selection-changed', { targetId: object.id, targetType: 'studio-object' });
+        this.render();
+      });
+      body.appendChild(row);
+    }
+  }
+
+  private renderStudioObjectEditor(body: HTMLElement): void {
+    const object = this.selectedStudioObjectId ? this.os.studioProject.get(this.selectedStudioObjectId) : undefined;
+    if (!object) {
+      body.appendChild(this.status('info', 'Select an object from Universal Objects. The same object is used by runtime, graph, and export.'));
+      return;
+    }
+    const name = this.mk('input') as HTMLInputElement;
+    name.value = object.name;
+    name.placeholder = 'Display name';
+    const refs = this.mk('input') as HTMLInputElement;
+    refs.value = object.references.join(', ');
+    refs.placeholder = 'References (comma-separated object IDs)';
+    const data = this.mk('textarea') as HTMLTextAreaElement;
+    data.value = JSON.stringify(object.data, null, 2);
+    data.rows = 9;
+    const save = this.mk('button', 'ui-button');
+    save.textContent = 'SAVE RUNTIME OBJECT';
+    save.addEventListener('click', () => {
+      try {
+        const parsed = JSON.parse(data.value) as Record<string, unknown>;
+        this.os.studioProject.upsert({ id: object.id, kind: object.kind, name: name.value, data: parsed, references: refs.value.split(',').map((value) => value.trim()).filter(Boolean) });
+        this.bus.emit('studio:object-updated', { id: object.id, kind: object.kind });
+        this.render();
+      } catch {
+        body.appendChild(this.status('error', 'Object data must be valid JSON.')); // universal fallback for unsupported schemas
+      }
+    });
+    const remove = this.mk('button', 'ui-button');
+    remove.textContent = 'DELETE OBJECT';
+    remove.addEventListener('click', () => { this.os.studioProject.remove(object.id); this.selectedStudioObjectId = null; this.selectedNodeId = null; this.render(); });
+    body.append(this.labeled('NAME', name), this.labeled('REFERENCES', refs), this.labeled('RUNTIME DATA', data), save, remove);
+  }
+
+  private renderNetworkManager(body: HTMLElement): void {
+    body.appendChild(this.status('info', 'Select a chain and save once. Tokens, economies, quests, shops, and wallet UI reference this network object.'));
+    const network = this.mk('select') as HTMLSelectElement;
+    const presets = [
+      ['Cronos Mainnet', '25', 'https://evm.cronos.org', 'CRO'], ['Ethereum', '1', 'https://ethereum-rpc.publicnode.com', 'ETH'],
+      ['Base', '8453', 'https://mainnet.base.org', 'ETH'], ['Arbitrum One', '42161', 'https://arb1.arbitrum.io/rpc', 'ETH'],
+      ['Polygon', '137', 'https://polygon-rpc.com', 'POL'], ['BNB Chain', '56', 'https://bsc-dataseed.binance.org', 'BNB'],
+      ['Avalanche C-Chain', '43114', 'https://api.avax.network/ext/bc/C/rpc', 'AVAX'], ['Custom EVM', '', '', ''],
+    ];
+    for (const preset of presets) { const option = document.createElement('option'); option.value = preset.join('|'); option.textContent = preset[0]; network.appendChild(option); }
+    const chainId = this.mk('input') as HTMLInputElement;
+    const rpc = this.mk('input') as HTMLInputElement;
+    const currency = this.mk('input') as HTMLInputElement;
+    const fill = () => { const [, id, url, token] = network.value.split('|'); chainId.value = id; rpc.value = url; currency.value = token; };
+    network.addEventListener('change', fill); fill();
+    const save = this.mk('button', 'ui-button');
+    save.textContent = 'SAVE NETWORK';
+    save.addEventListener('click', () => {
+      try {
+        const id = `network-${network.options[network.selectedIndex].textContent!.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+        this.os.studioProject.configureNetwork(id, network.options[network.selectedIndex].textContent!, { chainId: Number(chainId.value), rpcUrl: rpc.value, currency: currency.value, gasToken: currency.value });
+        this.selectedStudioObjectId = id; this.selectedNodeId = id; this.render();
+      } catch (error) { body.appendChild(this.status('error', error instanceof Error ? error.message : 'Could not save network.')); }
+    });
+    body.append(network, this.labeled('CHAIN ID', chainId), this.labeled('RPC URL', rpc), this.labeled('CURRENCY / GAS TOKEN', currency), save);
+  }
+
+  private renderProjectExport(body: HTMLElement): void {
+    body.appendChild(this.status('good', `${this.os.studioProject.list().length} canonical objects will travel with this export.`));
+    const exportButton = this.mk('button', 'ui-button');
+    exportButton.textContent = 'EXPORT FULL PROJECT ZIP';
+    exportButton.addEventListener('click', async () => {
+      exportButton.setAttribute('disabled', 'true');
+      exportButton.textContent = 'BUILDING ZIP…';
+      try {
+        const response = await fetch('/api/export-project', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studioProject: this.os.snapshot().studio }),
+        });
+        const result = await response.json() as { downloadUrl?: string; error?: string };
+        if (!response.ok || !result.downloadUrl) throw new Error(result.error ?? 'Export failed.');
+        const link = document.createElement('a'); link.href = result.downloadUrl; link.download = ''; link.click();
+        body.appendChild(this.status('good', 'Project ZIP created with studio/project.json included.'));
+      } catch (error) {
+        body.appendChild(this.status('error', error instanceof Error ? error.message : 'Export failed. Start the Chronos backend and try again.'));
+      } finally {
+        exportButton.removeAttribute('disabled');
+        exportButton.textContent = 'EXPORT FULL PROJECT ZIP';
+      }
+    });
+    body.appendChild(exportButton);
+    body.appendChild(this.status('info', 'The exported ZIP includes the same canonical objects used here, at studio/project.json.'));
+  }
+
+  private labeled(label: string, control: HTMLElement): HTMLElement {
+    const group = this.mk('label');
+    group.style.cssText = 'display:flex; flex-direction:column; gap:3px; margin:7px 0; color:var(--muted); font-size:10px;';
+    group.textContent = label;
+    control.style.width = '100%';
+    control.style.background = StudioColors.glassDeep;
+    control.style.color = StudioColors.teal;
+    control.style.border = `1px solid ${StudioColors.border}`;
+    control.style.fontFamily = 'inherit';
+    group.appendChild(control);
+    return group;
   }
 
   private renderGeneric(body: HTMLElement, type: string): void {
