@@ -29,4 +29,15 @@ describe('StudioProject — canonical studio ownership', () => {
     expect(snapshot.format).toBe('chronos-studio-project');
     expect(JSON.parse(JSON.stringify(snapshot)).objects[0].id).toBe('base');
   });
+
+  it('propagates the chosen token to runtime economy consumers', () => {
+    const project = new StudioProject(new ProjectGraph(), () => 1);
+    project.configureNetwork('net', 'Network', { chainId: 1, rpcUrl: 'https://rpc.example', currency: 'ETH', gasToken: 'ETH' });
+    project.configureToken('gold', 'Gold', { contract: '0xabc', networkId: 'net', decimals: 18, symbol: 'GOLD' });
+    project.upsert({ id: 'shopkeeper', kind: 'npc', name: 'Shopkeeper', data: {}, references: [] });
+    project.upsert({ id: 'main-economy', kind: 'economy', name: 'Main economy', data: {}, references: [] });
+    expect(project.bindTokenToConsumers('gold')).toEqual(['shopkeeper', 'main-economy']);
+    expect(project.get('shopkeeper')?.data.currencyToken).toBe('gold');
+    expect(project.affectedBy('gold').map((object) => object.id)).toEqual(['shopkeeper', 'main-economy']);
+  });
 });

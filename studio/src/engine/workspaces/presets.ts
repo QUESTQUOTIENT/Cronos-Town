@@ -22,6 +22,7 @@ export const WORKSPACE_PRESETS: WorkspacePreset[] = [
       { id: 'object-editor', title: 'Creator Control · Object Editor', type: 'studio-object-editor' },
       { id: 'network-manager', title: 'Creator Control · Network Manager', type: 'network-manager' },
       { id: 'export-project', title: 'Creator Control · Export Project', type: 'project-export' },
+      { id: 'story-graph', title: 'Creator Control · Story Graph', type: 'story-graph' },
       { id: 'graph', title: 'Project Graph', type: 'project-graph' },
       { id: 'hierarchy', title: 'Hierarchy', type: 'hierarchy' },
       { id: 'inspector', title: 'Inspector', type: 'inspector' },

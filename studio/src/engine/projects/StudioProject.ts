@@ -91,6 +91,30 @@ export class StudioProject {
     return this.upsert({ id, kind: 'token', name, data: copy(config), references: [config.networkId] });
   }
 
+  /**
+   * Make a token the shared currency for authored runtime consumers. References
+   * are the propagation contract: runtime, graph impact analysis, and export all
+   * see the same token link instead of keeping copied token settings.
+   */
+  bindTokenToConsumers(tokenId: string): string[] {
+    if (this.objects.get(tokenId)?.kind !== 'token') throw new Error(`Unknown token: ${tokenId}`);
+    const consumerKinds = new Set<StudioObjectKind>(['economy', 'marketplace', 'wallet', 'quest', 'npc']);
+    const changed: string[] = [];
+    for (const object of this.objects.values()) {
+      if (!consumerKinds.has(object.kind)) continue;
+      const references = [...new Set([...object.references, tokenId])];
+      const data = { ...object.data, currencyToken: tokenId };
+      this.upsert({ id: object.id, kind: object.kind, name: object.name, data, references });
+      changed.push(object.id);
+    }
+    return changed;
+  }
+
+  /** Objects that will react when this object changes, in runtime dependency order. */
+  affectedBy(id: string): StudioObject[] {
+    return this.graph.impact(id).map((node) => this.get(node.id)).filter((object): object is StudioObject => Boolean(object));
+  }
+
   snapshot(): StudioProjectSnapshot {
     return { format: 'chronos-studio-project', version: 1, objects: this.list() };
   }

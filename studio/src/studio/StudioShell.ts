@@ -390,6 +390,15 @@ export class StudioShell {
       case 'nft-pipeline':
         this.renderNftPipeline(body);
         break;
+      case 'story-graph':
+        this.renderStoryGraph(body);
+        break;
+      case 'token':
+        this.renderTokenEconomyBuilder(body);
+        break;
+      case 'audio':
+        this.renderAudioStudio(body);
+        break;
       case 'notifications':
         this.renderNotifications(body);
         break;
@@ -741,7 +750,8 @@ export class StudioShell {
       ['Cronos Mainnet', '25', 'https://evm.cronos.org', 'CRO'], ['Ethereum', '1', 'https://ethereum-rpc.publicnode.com', 'ETH'],
       ['Base', '8453', 'https://mainnet.base.org', 'ETH'], ['Arbitrum One', '42161', 'https://arb1.arbitrum.io/rpc', 'ETH'],
       ['Polygon', '137', 'https://polygon-rpc.com', 'POL'], ['BNB Chain', '56', 'https://bsc-dataseed.binance.org', 'BNB'],
-      ['Avalanche C-Chain', '43114', 'https://api.avax.network/ext/bc/C/rpc', 'AVAX'], ['Custom EVM', '', '', ''],
+      ['Avalanche C-Chain', '43114', 'https://api.avax.network/ext/bc/C/rpc', 'AVAX'], ['Solana', '101', 'https://api.mainnet-beta.solana.com', 'SOL'],
+      ['XLM / Stellar', '148', 'https://horizon.stellar.org', 'XLM'], ['Robinhood Chain', '46630', 'https://rpc.chain.robinhood.com', 'ETH'], ['Custom RPC', '', '', ''],
     ];
     for (const preset of presets) { const option = document.createElement('option'); option.value = preset.join('|'); option.textContent = preset[0]; network.appendChild(option); }
     const chainId = this.mk('input') as HTMLInputElement;
@@ -918,6 +928,72 @@ export class StudioShell {
       this.selectedStudioObjectId = id; this.selectedNodeId = id; this.render();
     });
     body.append(this.labeled('COLLECTION', collection), this.labeled('CONTRACT', contract), this.labeled('TOKEN ID', tokenId), this.labeled('TRAITS', traits), this.labeled('STYLE', style), preview, generate);
+  }
+
+  /** Visual narrative authoring: story nodes are ordinary linked StudioObjects. */
+  private renderStoryGraph(body: HTMLElement): void {
+    body.appendChild(this.status('info', 'Create chapters, dialogue, choices, cutscenes, consequences, and endings. Links are live project-graph references.'));
+    const kind = this.mk('select') as HTMLSelectElement;
+    const options: Array<[StudioObjectKind, string]> = [['story', 'Chapter'], ['dialogue', 'Dialogue'], ['quest', 'Quest'], ['cutscene', 'Cutscene'], ['world-state', 'Consequence / World State']];
+    for (const [value, label] of options) { const option = document.createElement('option'); option.value = value; option.textContent = label; kind.appendChild(option); }
+    const name = this.mk('input') as HTMLInputElement; name.placeholder = 'Node title';
+    const linkTo = this.mk('select') as HTMLSelectElement;
+    const none = document.createElement('option'); none.value = ''; none.textContent = 'No parent / start node'; linkTo.appendChild(none);
+    for (const object of this.os.studioProject.list().filter((object) => ['story', 'dialogue', 'quest', 'cutscene', 'world-state'].includes(object.kind))) { const option = document.createElement('option'); option.value = object.id; option.textContent = `${object.kind}: ${object.name}`; linkTo.appendChild(option); }
+    const add = this.mk('button', 'ui-button'); add.textContent = 'ADD STORY NODE';
+    add.addEventListener('click', () => {
+      const nodeKind = kind.value as StudioObjectKind;
+      const id = `${nodeKind}-${Date.now()}`;
+      this.os.studioEditor.save({ id, kind: nodeKind, name: name.value || `New ${nodeKind}`, data: nodeKind === 'dialogue' ? { lines: [], choices: [] } : nodeKind === 'world-state' ? { changes: {} } : {}, references: linkTo.value ? [linkTo.value] : [] });
+      this.selectedStudioObjectId = id; this.selectedNodeId = id; this.render();
+    });
+    body.append(kind, this.labeled('NODE TITLE', name), this.labeled('LINKS FROM', linkTo), add);
+    const nodes = this.os.studioProject.list().filter((object) => ['story', 'dialogue', 'quest', 'cutscene', 'world-state'].includes(object.kind));
+    for (const node of nodes) {
+      const row = this.mk('div', 'row'); row.textContent = `${node.kind.toUpperCase()}  ${node.name} → ${node.references.join(', ') || 'start'}`;
+      row.addEventListener('click', () => { this.selectedStudioObjectId = node.id; this.selectGraphNode(node.id); }); body.appendChild(row);
+    }
+  }
+
+  /** One-click token configuration plus automatic currency propagation. */
+  private renderTokenEconomyBuilder(body: HTMLElement): void {
+    const networks = this.os.studioProject.list('network');
+    const network = this.mk('select') as HTMLSelectElement;
+    for (const item of networks) { const option = document.createElement('option'); option.value = item.id; option.textContent = item.name; network.appendChild(option); }
+    if (!networks.length) body.appendChild(this.status('error', 'Create a network in Creator Control → Network Manager first.'));
+    const symbol = this.mk('input') as HTMLInputElement; symbol.placeholder = 'GOLD';
+    const contract = this.mk('input') as HTMLInputElement; contract.placeholder = '0x token contract';
+    const decimals = this.mk('input') as HTMLInputElement; decimals.type = 'number'; decimals.value = '18';
+    const save = this.mk('button', 'ui-button'); save.textContent = 'CREATE TOKEN & WIRE ECONOMY';
+    save.addEventListener('click', () => {
+      try {
+        const tokenId = `token-${(symbol.value || 'currency').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+        this.os.studioProject.configureToken(tokenId, symbol.value || 'Game Currency', { contract: contract.value, networkId: network.value, decimals: Number(decimals.value), symbol: symbol.value || 'TOKEN' });
+        const changed = this.os.studioProject.bindTokenToConsumers(tokenId);
+        body.appendChild(this.status('good', `Token linked to ${changed.length} runtime consumers: ${changed.join(', ') || 'none yet'}.`));
+        this.selectedStudioObjectId = tokenId; this.selectedNodeId = tokenId; this.render();
+      } catch (error) { body.appendChild(this.status('error', error instanceof Error ? error.message : 'Could not wire token.')); }
+    });
+    body.append(this.labeled('NETWORK', network), this.labeled('SYMBOL', symbol), this.labeled('CONTRACT', contract), this.labeled('DECIMALS', decimals), save);
+    const token = this.os.studioProject.list('token')[0];
+    if (token) body.appendChild(this.status('info', `${token.name} impact: ${this.os.studioProject.affectedBy(token.id).map((object) => object.name).join(', ') || 'no consumers'}.`));
+  }
+
+  /** Audio zones, buses, triggers, and mix values share the standard object pipeline. */
+  private renderAudioStudio(body: HTMLElement): void {
+    const name = this.mk('input') as HTMLInputElement; name.placeholder = 'Forest ambience';
+    const music = this.mk('input') as HTMLInputElement; music.placeholder = 'music/forest.ogg';
+    const ambience = this.mk('input') as HTMLInputElement; ambience.placeholder = 'audio/wind.ogg';
+    const trigger = this.mk('input') as HTMLInputElement; trigger.placeholder = 'on-enter:forest';
+    const volume = this.mk('input') as HTMLInputElement; volume.type = 'range'; volume.min = '0'; volume.max = '1'; volume.step = '0.05'; volume.value = '0.7';
+    const save = this.mk('button', 'ui-button'); save.textContent = 'CREATE AUDIO ZONE';
+    save.addEventListener('click', () => {
+      const id = `sound-zone-${Date.now()}`;
+      this.os.studioEditor.save({ id, kind: 'sound-zone', name: name.value || 'Audio Zone', data: { music: music.value, ambience: ambience.value, triggers: trigger.value.split(',').map((value) => value.trim()).filter(Boolean), volume: Number(volume.value), mixGroup: 'world', reverb: 0 }, references: [] });
+      this.selectedStudioObjectId = id; this.selectedNodeId = id; this.render();
+    });
+    body.append(this.labeled('ZONE NAME', name), this.labeled('MUSIC', music), this.labeled('AMBIENCE', ambience), this.labeled('RUNTIME TRIGGERS', trigger), this.labeled('VOLUME', volume), save);
+    for (const zone of this.os.studioProject.list('sound-zone')) { const row = this.mk('div', 'row'); row.textContent = `${zone.name} · ${String(zone.data.volume ?? 1)} · ${String(zone.data.triggers ?? '')}`; row.addEventListener('click', () => this.selectGraphNode(zone.id)); body.appendChild(row); }
   }
 
   private renderGeneric(body: HTMLElement, type: string): void {
