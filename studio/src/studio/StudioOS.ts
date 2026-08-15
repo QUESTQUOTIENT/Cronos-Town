@@ -25,6 +25,7 @@ import { ProjectGraph } from '../engine/projects/ProjectGraph';
 import { StudioProject } from '../engine/projects/StudioProject';
 import { StudioObjectEditor } from '../engine/projects/StudioObjectEditor';
 import { StudioTransactionEngine } from '../engine/projects/StudioTransaction';
+import { RuntimeEventBus, StudioSubscriptionEngine } from '../engine/projects/StudioSubscriptions';
 import { AssetRegistry } from '../engine/assets/AssetRegistry';
 import { AssetImporter } from '../engine/assets/AssetImporter';
 import { WorkspaceManager } from '../engine/workspaces/WorkspaceManager';
@@ -60,6 +61,9 @@ export class StudioOS {
   readonly studioEditor = new StudioObjectEditor(this.studioProject, this.commands);
   /** v3 governance boundary for previewed/committed revisioned mutations. */
   readonly transactions = new StudioTransactionEngine(this.studioProject, this.graph);
+  /** Runtime events are routed to object subscriptions, never direct mutators. */
+  readonly runtimeEvents = new RuntimeEventBus();
+  readonly subscriptions = new StudioSubscriptionEngine();
   readonly assets: AssetRegistry;
   readonly importer: AssetImporter;
   readonly workspaces: WorkspaceManager;
