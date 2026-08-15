@@ -18,7 +18,7 @@ import type { SceneManager } from '../engine/scenes/SceneManager';
 import type { ProjectManager } from '../engine/projects/ProjectManager';
 import type { WorkspaceManager } from '../engine/workspaces/WorkspaceManager';
 import type { StudioOS } from './StudioOS';
-import type { StudioObject, StudioObjectKind, StudioProject } from '../engine/projects/StudioProject';
+import type { StudioObject, StudioObjectKind, StudioProject, StudioProjectSnapshot } from '../engine/projects/StudioProject';
 import { layoutDock, simpleRowDock } from '../ui/layout';
 import { StudioColors } from '../ui/theme';
 import { SPRITE_PRESETS } from '../features/sprite-lab/presets';
@@ -795,7 +795,26 @@ export class StudioShell {
       }
     });
     body.appendChild(exportButton);
-    body.appendChild(this.status('info', 'The exported ZIP includes the same canonical objects used here, at studio/project.json.'));
+    const importer = this.mk('input') as HTMLInputElement;
+    importer.type = 'file'; importer.accept = 'application/json,.json';
+    importer.addEventListener('change', async () => {
+      const file = importer.files?.[0];
+      if (!file) return;
+      try {
+        const parsed = JSON.parse(await file.text()) as { studio?: unknown; format?: string; version?: number; objects?: unknown[] };
+        const snapshot = parsed.studio ?? parsed;
+        if (!snapshot || typeof snapshot !== 'object') throw new Error('No StudioObject snapshot found.');
+        this.os.studioProject.restore(snapshot as StudioProjectSnapshot);
+        this.os.commands.clear();
+        this.selectedStudioObjectId = null; this.selectedNodeId = null;
+        body.appendChild(this.status('good', 'Studio project imported. Runtime objects, graph links, and export source are synchronized.'));
+        this.render();
+      } catch (error) {
+        body.appendChild(this.status('error', error instanceof Error ? error.message : 'Could not import studio project.'));
+      }
+    });
+    body.appendChild(this.labeled('IMPORT STUDIO SNAPSHOT', importer));
+    body.appendChild(this.status('info', 'The exported ZIP includes the same canonical objects used here, at studio/project.json. Import accepts either that snapshot or a full StudioOS snapshot.'));
   }
 
   private labeled(label: string, control: HTMLElement): HTMLElement {
