@@ -60,6 +60,7 @@ export const WORKSPACE_PRESETS: WorkspacePreset[] = [
       { id: 'tilesets', title: 'Tilesets', type: 'tilesets' },
       { id: 'audio', title: 'Audio', type: 'audio' },
       { id: 'templates', title: 'Templates', type: 'templates' },
+      { id: 'nft-pipeline', title: 'NFT Character Pipeline', type: 'nft-pipeline' },
     ],
   },
   {

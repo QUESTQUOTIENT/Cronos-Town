@@ -18,7 +18,7 @@ import type { SceneManager } from '../engine/scenes/SceneManager';
 import type { ProjectManager } from '../engine/projects/ProjectManager';
 import type { WorkspaceManager } from '../engine/workspaces/WorkspaceManager';
 import type { StudioOS } from './StudioOS';
-import type { StudioObjectKind, StudioProject } from '../engine/projects/StudioProject';
+import type { StudioObject, StudioObjectKind, StudioProject } from '../engine/projects/StudioProject';
 import { layoutDock, simpleRowDock } from '../ui/layout';
 import { StudioColors } from '../ui/theme';
 import { SPRITE_PRESETS } from '../features/sprite-lab/presets';
@@ -381,6 +381,15 @@ export class StudioShell {
       case 'timeline':
         this.renderTimeline(body);
         break;
+      case 'canvas':
+        this.renderUiCanvas(body);
+        break;
+      case 'layers':
+        this.renderUiLayers(body);
+        break;
+      case 'nft-pipeline':
+        this.renderNftPipeline(body);
+        break;
       case 'notifications':
         this.renderNotifications(body);
         break;
@@ -694,6 +703,10 @@ export class StudioShell {
       body.appendChild(this.status('info', 'Select an object from Universal Objects. The same object is used by runtime, graph, and export.'));
       return;
     }
+    if (object.kind === 'npc') {
+      this.renderNpcCreator(body, object);
+      return;
+    }
     const name = this.mk('input') as HTMLInputElement;
     name.value = object.name;
     name.placeholder = 'Display name';
@@ -786,6 +799,125 @@ export class StudioShell {
     control.style.fontFamily = 'inherit';
     group.appendChild(control);
     return group;
+  }
+
+  /** Visual, grid-constrained UI composition. Components are stored on a UI StudioObject. */
+  private renderUiCanvas(body: HTMLElement): void {
+    let screen: StudioObject | undefined = this.os.studioProject.list('ui')[0];
+    if (!screen) {
+      this.os.studioEditor.save({ id: 'ui-main', kind: 'ui', name: 'Main HUD', data: { layout: 'gba-20x14', components: [], theme: 'gba-dark' }, references: [] });
+      screen = this.os.studioProject.get('ui-main');
+    }
+    if (!screen) return;
+    const components = Array.isArray(screen.data.components) ? screen.data.components as Array<Record<string, unknown>> : [];
+    const toolbar = this.mk('div');
+    toolbar.style.cssText = 'display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px;';
+    for (const type of ['panel', 'button', 'dialogue', 'inventory', 'wallet', 'battle']) {
+      const button = this.mk('button', 'ui-button'); button.textContent = `+ ${type.toUpperCase()}`;
+      button.addEventListener('click', () => {
+        const n = components.length;
+        const next = [...components, { id: `ui-${Date.now()}`, type, label: type === 'button' ? 'ACTION' : type.toUpperCase(), x: (n % 4) * 4, y: Math.floor(n / 4) * 3, w: type === 'dialogue' ? 12 : 4, h: type === 'dialogue' ? 3 : 2 }];
+        this.os.studioEditor.save({ id: screen!.id, kind: 'ui', name: screen!.name, data: { ...screen!.data, components: next }, references: screen!.references });
+        this.render();
+      });
+      toolbar.appendChild(button);
+    }
+    body.appendChild(toolbar);
+    const stage = this.mk('div');
+    stage.style.cssText = `position:relative; width:100%; aspect-ratio:20/14; min-height:230px; overflow:hidden; background:repeating-linear-gradient(0deg, transparent, transparent calc(7.14% - 1px), #315a45 7.14%), repeating-linear-gradient(90deg, transparent, transparent calc(5% - 1px), #315a45 5%); border:2px solid ${StudioColors.teal}; image-rendering:pixelated;`;
+    for (const component of components) {
+      const element = this.mk('button');
+      const x = Number(component.x ?? 0); const y = Number(component.y ?? 0); const w = Number(component.w ?? 4); const h = Number(component.h ?? 2);
+      element.textContent = String(component.label ?? component.type ?? 'component');
+      element.title = 'Click to select; use arrow buttons to move on the tile grid.';
+      element.style.cssText = `position:absolute; left:${x * 5}%; top:${y * 7.142857}%; width:${w * 5}%; height:${h * 7.142857}%; overflow:hidden; background:${component.type === 'dialogue' ? '#26352c' : '#164b3b'}; color:${StudioColors.gold}; border:1px solid ${StudioColors.green}; font:9px 'Courier New'; cursor:pointer;`;
+      element.addEventListener('click', () => this.renderUiComponentControls(body, screen!, String(component.id)));
+      stage.appendChild(element);
+    }
+    body.appendChild(stage);
+    body.appendChild(this.status('info', '20 × 14 GBA tile canvas. Add components, then select one to nudge or remove it.'));
+  }
+
+  private renderUiComponentControls(body: HTMLElement, screen: StudioObject, id: string): void {
+    const components = Array.isArray(screen.data.components) ? screen.data.components as Array<Record<string, unknown>> : [];
+    const component = components.find((item) => item.id === id);
+    if (!component) return;
+    const controls = this.mk('div'); controls.style.cssText = 'display:flex; gap:4px; flex-wrap:wrap; margin-top:7px;';
+    for (const [label, dx, dy] of [['←', -1, 0], ['↑', 0, -1], ['↓', 0, 1], ['→', 1, 0]] as Array<[string, number, number]>) {
+      const button = this.mk('button', 'ui-button'); button.textContent = label;
+      button.addEventListener('click', () => {
+        const next = components.map((item) => item.id === id ? { ...item, x: Math.max(0, Math.min(19 - Number(item.w ?? 1), Number(item.x ?? 0) + dx)), y: Math.max(0, Math.min(13 - Number(item.h ?? 1), Number(item.y ?? 0) + dy)) } : item);
+        this.os.studioEditor.save({ id: screen.id, kind: 'ui', name: screen.name, data: { ...screen.data, components: next }, references: screen.references }); this.render();
+      }); controls.appendChild(button);
+    }
+    const remove = this.mk('button', 'ui-button'); remove.textContent = 'REMOVE';
+    remove.addEventListener('click', () => { this.os.studioEditor.save({ id: screen.id, kind: 'ui', name: screen.name, data: { ...screen.data, components: components.filter((item) => item.id !== id) }, references: screen.references }); this.render(); });
+    controls.appendChild(remove); body.appendChild(controls);
+  }
+
+  private renderUiLayers(body: HTMLElement): void {
+    const screen = this.os.studioProject.list('ui')[0];
+    const components = screen && Array.isArray(screen.data.components) ? screen.data.components as Array<Record<string, unknown>> : [];
+    if (!screen || !components.length) { body.appendChild(this.status('info', 'The canvas has no UI components yet.')); return; }
+    for (const component of components) {
+      const row = this.mk('div', 'row'); row.textContent = `${String(component.type).toUpperCase()} · ${String(component.label)} · ${component.x},${component.y}`;
+      row.addEventListener('click', () => this.selectGraphNode(screen.id)); body.appendChild(row);
+    }
+  }
+
+  /** Complete non-code NPC form. Advanced values remain normal StudioObject data. */
+  private renderNpcCreator(body: HTMLElement, npc: StudioObject): void {
+    const data = npc.data;
+    const fields: Array<[string, string, string]> = [
+      ['Sprite', 'sprite', 'sprites/npc.png'], ['Animation', 'animation', 'idle, walk'], ['Portrait', 'portrait', 'portraits/npc.png'],
+      ['Dialogue / branches', 'dialogue', 'Hello, traveler.'], ['Quest IDs', 'quests', 'quest-main'], ['Schedule', 'schedule', 'morning:town; night:inn'],
+      ['Location', 'location', 'town-square'], ['Relationships', 'relationships', 'player:neutral'], ['Reputation', 'reputation', '0'],
+      ['Shop inventory', 'inventory', 'potion, map'], ['Combat / AI behavior', 'combatBehavior', 'passive'], ['AI personality', 'personality', 'friendly'],
+      ['Memory', 'memory', ''], ['Voice', 'voice', ''], ['Sound', 'sound', ''], ['NFT token ID', 'nftTokenId', ''], ['Blockchain identity', 'blockchainIdentity', ''],
+    ];
+    const controls = new Map<string, HTMLInputElement>();
+    const name = this.mk('input') as HTMLInputElement; name.value = npc.name; body.appendChild(this.labeled('NPC NAME', name));
+    for (const [label, key, placeholder] of fields) {
+      const input = this.mk('input') as HTMLInputElement; input.value = String(data[key] ?? ''); input.placeholder = placeholder; controls.set(key, input); body.appendChild(this.labeled(label.toUpperCase(), input));
+    }
+    const save = this.mk('button', 'ui-button'); save.textContent = 'SAVE NPC TO RUNTIME';
+    save.addEventListener('click', () => {
+      const next: Record<string, unknown> = { ...data };
+      controls.forEach((control, key) => { next[key] = control.value; });
+      this.os.studioEditor.save({ id: npc.id, kind: 'npc', name: name.value, data: next, references: npc.references });
+      this.bus.emit('studio:npc-updated', { id: npc.id }); this.render();
+    });
+    body.append(save, this.status('info', 'This NPC object is linked to graph, undo/redo history, runtime snapshot, and export.'));
+  }
+
+  /** Collection → metadata/traits → pixel preview → linked character object. */
+  private renderNftPipeline(body: HTMLElement): void {
+    body.appendChild(this.status('info', 'Import collection metadata, choose a retro style, preview a generated sprite, then create a runtime-owned blockchain character.'));
+    const collection = this.mk('input') as HTMLInputElement; collection.placeholder = 'Collection name';
+    const contract = this.mk('input') as HTMLInputElement; contract.placeholder = '0x contract address';
+    const tokenId = this.mk('input') as HTMLInputElement; tokenId.placeholder = 'Token ID';
+    const traits = this.mk('input') as HTMLInputElement; traits.placeholder = 'Traits, e.g. blue, robot, visor';
+    const style = this.mk('select') as HTMLSelectElement;
+    for (const value of ['GBA Pixel', 'HD Pixel', 'Portrait']) { const option = document.createElement('option'); option.value = value; option.textContent = value; style.appendChild(option); }
+    const preview = this.mk('div'); preview.style.cssText = 'width:96px; height:96px; margin:8px auto; border:2px solid #79f2c0; image-rendering:pixelated; background:#0c1411;';
+    const makePreview = (): string => {
+      const seed = [...`${collection.value}|${tokenId.value}|${traits.value}`].reduce((total, char) => (total * 31 + char.charCodeAt(0)) >>> 0, 7);
+      const colors = ['#83d1c7', '#f3d575', '#a8403d', '#79f2c0', '#5e79bc'];
+      const pixels = Array.from({ length: 64 }, (_, i) => ((seed >>> (i % 24)) & 1) ? `<rect x="${(i % 8) * 4}" y="${Math.floor(i / 8) * 4}" width="4" height="4" fill="${colors[(seed + i) % colors.length]}"/>` : '').join('');
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges"><rect width="32" height="32" fill="#14251d"/>${pixels}</svg>`;
+      const url = `data:image/svg+xml;base64,${btoa(svg)}`; preview.style.backgroundImage = `url('${url}')`; preview.style.backgroundSize = '100% 100%'; return url;
+    };
+    for (const control of [collection, tokenId, traits]) control.addEventListener('input', makePreview);
+    const generate = this.mk('button', 'ui-button'); generate.textContent = 'GENERATE & CREATE CHARACTER';
+    generate.addEventListener('click', () => {
+      const collectionId = `nft-${(collection.value || 'collection').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+      const existing = this.os.studioProject.get(collectionId);
+      if (!existing) this.os.studioEditor.save({ id: collectionId, kind: 'nft-collection', name: collection.value || 'NFT Collection', data: { contract: contract.value, metadata: { traits: traits.value.split(',').map((value) => value.trim()).filter(Boolean) } }, references: [] });
+      const id = `character-${collectionId}-${tokenId.value || Date.now()}`.replace(/[^a-zA-Z0-9._-]/g, '-');
+      this.os.studioEditor.save({ id, kind: 'character', name: `${collection.value || 'NFT'} #${tokenId.value || 'new'}`, data: { contract: contract.value, tokenId: tokenId.value, traits: traits.value.split(',').map((value) => value.trim()).filter(Boolean), style: style.value, sprite: makePreview(), animations: ['idle', 'walk'], portrait: makePreview(), owner: '' }, references: [collectionId] });
+      this.selectedStudioObjectId = id; this.selectedNodeId = id; this.render();
+    });
+    body.append(this.labeled('COLLECTION', collection), this.labeled('CONTRACT', contract), this.labeled('TOKEN ID', tokenId), this.labeled('TRAITS', traits), this.labeled('STYLE', style), preview, generate);
   }
 
   private renderGeneric(body: HTMLElement, type: string): void {
