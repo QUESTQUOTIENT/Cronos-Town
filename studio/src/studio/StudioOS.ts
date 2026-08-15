@@ -28,6 +28,7 @@ import { StudioTransactionEngine } from '../engine/projects/StudioTransaction';
 import { RuntimeEventBus, StudioSubscriptionEngine } from '../engine/projects/StudioSubscriptions';
 import { RuntimeSession } from '../engine/projects/RuntimeSession';
 import { createDefaultRuntimeAdapters } from '../engine/projects/RuntimeAdapters';
+import { StudioWatcherEngine } from '../engine/projects/StudioWatchers';
 import { AssetRegistry } from '../engine/assets/AssetRegistry';
 import { AssetImporter } from '../engine/assets/AssetImporter';
 import { WorkspaceManager } from '../engine/workspaces/WorkspaceManager';
@@ -68,6 +69,7 @@ export class StudioOS {
   readonly subscriptions = new StudioSubscriptionEngine();
   /** Default live projection; alternate branch/revision sessions can coexist. */
   readonly runtimeSession = new RuntimeSession('session-main', 'main');
+  readonly watchers = new StudioWatcherEngine();
   readonly assets: AssetRegistry;
   readonly importer: AssetImporter;
   readonly workspaces: WorkspaceManager;
