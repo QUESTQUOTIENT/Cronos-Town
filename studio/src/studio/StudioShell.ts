@@ -19,6 +19,7 @@ import type { ProjectManager } from '../engine/projects/ProjectManager';
 import type { WorkspaceManager } from '../engine/workspaces/WorkspaceManager';
 import type { StudioOS } from './StudioOS';
 import type { StudioObject, StudioObjectKind, StudioProject, StudioProjectSnapshot } from '../engine/projects/StudioProject';
+import { getStudioSchema, validateStudioObject } from '../engine/projects/StudioSchemas';
 import { layoutDock, simpleRowDock } from '../ui/layout';
 import { StudioColors } from '../ui/theme';
 import { SPRITE_PRESETS } from '../features/sprite-lab/presets';
@@ -716,31 +717,7 @@ export class StudioShell {
       this.renderNpcCreator(body, object);
       return;
     }
-    const name = this.mk('input') as HTMLInputElement;
-    name.value = object.name;
-    name.placeholder = 'Display name';
-    const refs = this.mk('input') as HTMLInputElement;
-    refs.value = object.references.join(', ');
-    refs.placeholder = 'References (comma-separated object IDs)';
-    const data = this.mk('textarea') as HTMLTextAreaElement;
-    data.value = JSON.stringify(object.data, null, 2);
-    data.rows = 9;
-    const save = this.mk('button', 'ui-button');
-    save.textContent = 'SAVE RUNTIME OBJECT';
-    save.addEventListener('click', () => {
-      try {
-        const parsed = JSON.parse(data.value) as Record<string, unknown>;
-        this.os.studioEditor.save({ id: object.id, kind: object.kind, name: name.value, data: parsed, references: refs.value.split(',').map((value) => value.trim()).filter(Boolean) });
-        this.bus.emit('studio:object-updated', { id: object.id, kind: object.kind });
-        this.render();
-      } catch {
-        body.appendChild(this.status('error', 'Object data must be valid JSON.')); // universal fallback for unsupported schemas
-      }
-    });
-    const remove = this.mk('button', 'ui-button');
-    remove.textContent = 'DELETE OBJECT';
-    remove.addEventListener('click', () => { this.os.studioEditor.remove(object.id); this.selectedStudioObjectId = null; this.selectedNodeId = null; this.render(); });
-    body.append(this.labeled('NAME', name), this.labeled('REFERENCES', refs), this.labeled('RUNTIME DATA', data), save, remove);
+    this.renderSchemaObjectEditor(body, object);
   }
 
   private renderNetworkManager(body: HTMLElement): void {
@@ -828,6 +805,49 @@ export class StudioShell {
     control.style.fontFamily = 'inherit';
     group.appendChild(control);
     return group;
+  }
+
+  /** Schema-generated default editor; JSON is deliberately an advanced escape hatch. */
+  private renderSchemaObjectEditor(body: HTMLElement, object: StudioObject): void {
+    const schema = getStudioSchema(object.kind);
+    const name = this.mk('input') as HTMLInputElement; name.value = object.name;
+    const controls = new Map<string, HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>();
+    body.appendChild(this.status('info', `${schema.title} schema · ${schema.graphRole} graph role`));
+    body.appendChild(this.labeled('NAME', name));
+    for (const field of schema.fields) {
+      let control: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+      if (field.widget === 'textarea') control = this.mk('textarea') as HTMLTextAreaElement;
+      else if (field.widget === 'select') {
+        control = this.mk('select') as HTMLSelectElement;
+        for (const value of field.options ?? []) { const option = document.createElement('option'); option.value = value; option.textContent = value; control.appendChild(option); }
+      } else {
+        control = this.mk('input') as HTMLInputElement;
+        control.type = field.widget === 'number' || field.widget === 'range' ? field.widget : 'text';
+        if (field.min !== undefined) control.min = String(field.min);
+        if (field.max !== undefined) control.max = String(field.max);
+        if (field.widget === 'range') control.step = '0.05';
+      }
+      control.value = String(object.data[field.key] ?? (field.widget === 'range' ? '1' : ''));
+      if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) control.placeholder = field.placeholder ?? '';
+      controls.set(field.key, control); body.appendChild(this.labeled(field.label.toUpperCase(), control));
+    }
+    const refs = this.mk('input') as HTMLInputElement; refs.value = object.references.join(', '); refs.placeholder = 'comma-separated object IDs'; body.appendChild(this.labeled('REFERENCES', refs));
+    const save = this.mk('button', 'ui-button'); save.textContent = 'SAVE SCHEMA OBJECT';
+    save.addEventListener('click', () => {
+      const data: Record<string, unknown> = { ...object.data };
+      for (const field of schema.fields) {
+        const value = controls.get(field.key)!.value;
+        data[field.key] = field.widget === 'number' || field.widget === 'range' ? Number(value) : value;
+      }
+      this.os.studioEditor.save({ id: object.id, kind: object.kind, name: name.value, data, references: refs.value.split(',').map((value) => value.trim()).filter(Boolean) });
+      this.render();
+    });
+    body.appendChild(save);
+    const diagnostics = validateStudioObject(object);
+    if (diagnostics.length) body.appendChild(this.status('error', diagnostics.map((diagnostic) => diagnostic.message).join(' ')));
+    const advanced = document.createElement('details');
+    const summary = document.createElement('summary'); summary.textContent = 'Advanced JSON data'; advanced.appendChild(summary);
+    const raw = this.mk('textarea') as HTMLTextAreaElement; raw.value = JSON.stringify(object.data, null, 2); raw.rows = 6; raw.readOnly = true; advanced.appendChild(raw); body.appendChild(advanced);
   }
 
   /** Visual, grid-constrained UI composition. Components are stored on a UI StudioObject. */

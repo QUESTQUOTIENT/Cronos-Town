@@ -10,6 +10,7 @@ import type { EntityManager, Component } from '../entity/EntityManager';
 import type { ProjectGraph } from '../projects/ProjectGraph';
 import type { AssetRegistry, AssetRecord } from '../assets/AssetRegistry';
 import type { StudioProject } from '../projects/StudioProject';
+import { getStudioSchema, validateStudioObject } from '../projects/StudioSchemas';
 
 export interface InspectorField {
   label: string;
@@ -107,7 +108,8 @@ export class Inspector {
       sections.splice(1, 0, {
         title: 'Runtime Object',
         fields: [
-          { label: 'studio type', value: studioObject.kind, tone: 'gold' },
+          { label: 'schema', value: getStudioSchema(studioObject.kind).title, tone: 'gold' },
+          { label: 'graph role', value: getStudioSchema(studioObject.kind).graphRole },
           { label: 'updated', value: new Date(studioObject.updatedAt).toISOString() },
           ...Object.entries(studioObject.data).map(([key, value]) => ({
             label: key,
@@ -115,6 +117,15 @@ export class Inspector {
             tone: 'teal' as const,
           })),
         ],
+      });
+    }
+    if (studioObject) {
+      const diagnostics = validateStudioObject(studioObject);
+      sections.push({
+        title: 'Diagnostics',
+        fields: diagnostics.length
+          ? diagnostics.map((diagnostic) => ({ label: diagnostic.severity.toUpperCase(), value: diagnostic.message, tone: diagnostic.severity === 'error' ? 'danger' as const : 'gold' as const }))
+          : [{ label: 'status', value: 'Schema valid', tone: 'teal' }],
       });
     }
 
