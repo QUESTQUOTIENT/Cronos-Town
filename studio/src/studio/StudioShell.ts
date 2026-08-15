@@ -25,6 +25,7 @@ import { StudioColors } from '../ui/theme';
 import { SPRITE_PRESETS } from '../features/sprite-lab/presets';
 import { Inspector } from '../engine/inspector/Inspector';
 import { layoutEdges, layoutGraph } from '../engine/graph/GraphLayout';
+import { transactionGraphOverlays } from '../engine/graph/GraphOverlays';
 import { ShortcutManager } from '../ui/systems/ShortcutManager';
 import { FocusManager } from '../ui/systems/FocusManager';
 import { buildTimelineSpec } from '../ui/components/timeline';
@@ -477,6 +478,8 @@ export class StudioShell {
   private renderProjectGraph(body: HTMLElement): void {
     const { positions, width, height } = layoutGraph(this.os.graph, { layerSpacing: 220, nodeSpacing: 60 });
     const edges = layoutEdges(this.os.graph, positions);
+    const latestTransaction = this.os.transactions.all().slice(-1)[0];
+    const overlays = latestTransaction ? new Map(transactionGraphOverlays(this.os.graph, latestTransaction).map((overlay) => [overlay.nodeId, overlay])) : new Map();
     if (positions.length === 0) {
       body.appendChild(this.status('info', 'The project graph is empty. Create a project + scene first.'));
       return;
@@ -516,8 +519,11 @@ export class StudioShell {
       node.style.top = `${pos.y}px`;
       node.style.width = '160px';
       node.style.minHeight = '40px';
-      node.style.background = this.selectedNodeId === pos.node.id ? '#1f3d2f' : StudioColors.glassDeep;
-      node.style.border = `1px solid ${this.selectedNodeId === pos.node.id ? StudioColors.green : StudioColors.border}`;
+      const overlay = overlays.get(pos.node.id);
+      const overlayColors: Record<string, string> = { preview: '#24507a', added: '#1f5a3a', removed: '#6a3030', narrative: '#5b3b76', economy: '#6f5b1c', blockchain: '#24507a', ui: '#235a60', audio: '#4b3d70', ai: '#5a405a', world: '#375b39', runtime: '#3f4e67', export: '#66523d' };
+      node.style.background = this.selectedNodeId === pos.node.id ? '#1f3d2f' : (overlay ? overlayColors[overlay.tone] : StudioColors.glassDeep);
+      node.style.border = `1px solid ${this.selectedNodeId === pos.node.id ? StudioColors.green : (overlay ? StudioColors.gold : StudioColors.border)}`;
+      if (overlay) node.title = overlay.label;
       node.style.borderRadius = '6px';
       node.style.padding = '6px 10px';
       node.style.cursor = 'pointer';
