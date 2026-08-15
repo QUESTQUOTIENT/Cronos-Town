@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chronos Studio — Cronos Town Engine</title>
+    <style>
+      :root {
+        --bg: #0a0f0d;
+        --glass: #141f1a;
+        --glass-deep: #0c1411;
+        --teal: #83d1c7;
+        --gold: #f3d575;
+        --red: #a8403d;
+        --green: #79f2c0;
+        --muted: #9ebd7b;
+        --text: #d6e6e0;
+        --border: #3e8150;
+        --border-strong: #2d4a3e;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Courier New', ui-monospace, monospace;
+        font-size: 12px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      /* ===== Top bar ===== */
+      #topbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        background: var(--glass);
+        border-bottom: 1px solid var(--border-strong);
+        flex: 0 0 auto;
+      }
+      #brand { color: var(--gold); font-weight: 700; letter-spacing: 1px; }
+      #brand small { color: var(--teal); font-weight: 400; }
+      .ws-tabs { display: flex; gap: 4px; margin-left: auto; }
+      .ws-tab {
+        background: var(--glass-deep);
+        color: var(--teal);
+        border: 1px solid var(--border);
+        padding: 5px 12px;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 11px;
+        border-radius: 4px 4px 0 0;
+      }
+      .ws-tab.active { background: var(--teal); color: var(--bg); border-color: var(--teal); font-weight: 700; }
+      /* ===== Dock area ===== */
+      #dock {
+        flex: 1 1 auto;
+        position: relative;
+        overflow: hidden;
+      }
+      .dock-panel {
+        position: absolute;
+        background: var(--glass);
+        border: 1px solid var(--border-strong);
+        border-radius: 6px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: all 120ms;
+      }
+      .dock-panel > header {
+        padding: 5px 10px;
+        background: var(--glass-deep);
+        color: var(--teal);
+        font-weight: 700;
+        font-size: 10px;
+        letter-spacing: 1px;
+        border-bottom: 1px solid var(--border-strong);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: default;
+        flex: 0 0 auto;
+      }
+      .dock-panel > .panel-body { flex: 1 1 auto; overflow: auto; padding: 8px; }
+      /* ===== Generic UI (mirrors DomUiAdapter classes) ===== */
+      .ui-button {
+        background: var(--glass-deep);
+        border: 1px solid var(--teal);
+        color: var(--teal);
+        padding: 6px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 11px;
+        transition: filter 120ms;
+      }
+      .ui-button:hover { filter: brightness(1.3); }
+      .ui-button[disabled] { opacity: 0.4; cursor: not-allowed; }
+      .ui-status { padding: 6px 10px; border-radius: 4px; font-size: 11px; }
+      .ui-status--good { color: var(--green); border: 1px solid var(--green); }
+      .ui-status--error { color: var(--red); border: 1px solid var(--red); }
+      .ui-status--info { color: var(--teal); border: 1px solid var(--border); }
+      /* ===== Hierarchy / list rows ===== */
+      .row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 4px; cursor: pointer; }
+      .row:hover { background: var(--glass-deep); }
+      .row.selected { background: #1f3d2f; outline: 1px solid var(--green); }
+      .row .id { color: var(--muted); font-size: 10px; }
+      .row .tags { margin-left: auto; color: var(--teal); font-size: 10px; }
+      /* ===== Inspector fields ===== */
+      .field { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid var(--border-strong); }
+      .field .k { color: var(--muted); }
+      .field .v { color: var(--gold); }
+      .field .v.teal { color: var(--teal); }
+      /* ===== Event log ===== */
+      #event-log { display: flex; flex-direction: column; gap: 2px; font-size: 10px; }
+      #event-log .ev { color: var(--muted); }
+      #event-log .ev b { color: var(--teal); }
+      /* ===== Status bar ===== */
+      #statusbar {
+        flex: 0 0 auto;
+        display: flex;
+        gap: 16px;
+        padding: 5px 12px;
+        background: var(--glass);
+        border-top: 1px solid var(--border-strong);
+        font-size: 10px;
+        color: var(--muted);
+      }
+      #statusbar b { color: var(--teal); }
+      /* ===== Command palette ===== */
+      #palette {
+        position: fixed;
+        top: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(92vw, 520px);
+        background: var(--glass);
+        border: 1px solid var(--teal);
+        border-radius: 8px;
+        box-shadow: 0 0 24px rgba(131,209,199,0.2);
+        z-index: 100;
+        display: none;
+        flex-direction: column;
+      }
+      #palette.open { display: flex; }
+      #palette input {
+        background: var(--glass-deep);
+        border: none;
+        border-bottom: 1px solid var(--border-strong);
+        color: var(--text);
+        padding: 10px 12px;
+        font-family: inherit;
+        font-size: 13px;
+        outline: none;
+      }
+      #palette .cmd { padding: 8px 12px; cursor: pointer; color: var(--text); }
+      #palette .cmd:hover, #palette .cmd.selected { background: var(--glass-deep); color: var(--gold); }
+      .muted { color: var(--muted); }
+      a { color: var(--gold); }
+    </style>
+  </head>
+  <body>
+    <div id="topbar">
+      <span id="brand">CHRONOS STUDIO <small>· Cronos Town Engine</small></span>
+      <span class="muted" id="project-name">no project</span>
+      <div class="ws-tabs" id="ws-tabs"></div>
+    </div>
+
+    <div id="dock"></div>
+
+    <div id="statusbar">
+      <span>PROJECT: <b id="sb-project">—</b></span>
+      <span>SCENE: <b id="sb-scene">—</b></span>
+      <span>ENTITIES: <b id="sb-entities">0</b></span>
+      <span style="margin-left:auto">EVENTS: <b id="sb-events">0</b></span>
+      <span>CTRL+K COMMAND PALETTE</span>
+    </div>
+
+    <div id="palette">
+      <input id="palette-input" placeholder="Type a command…" />
+      <div id="palette-list"></div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

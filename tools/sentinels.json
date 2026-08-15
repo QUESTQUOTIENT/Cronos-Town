@@ -1,0 +1,94 @@
+{
+  "theme_tiles": [
+    "--world-width: min(100vw, calc(100vh * 1.428571))",
+    "aspect-ratio: 20 / 14",
+    "#0a0f0d",
+    "#141f1a",
+    "#83d1c7",
+    "#f3d575",
+    "#a8403d"
+  ],
+  "security": [
+    "RATE_LIMIT_MAX_REQUESTS = 1200",
+    "is_safe_metadata_url",
+    "generate_hmac_signature",
+    "check_rate_limit",
+    "createToastNotification",
+    "window.__EconomyAuditLog",
+    "window.__CronosTxQueue",
+    "crolana-rpc-repair-btn",
+    "repairCrolanaWalletRpc",
+    "cronos-evm.publicnode.com"
+  ],
+  "wallet_web3": [
+    "window.ethereum",
+    "eth_requestAccounts",
+    "eth_sendTransaction",
+    "WEB3 WALLET REQUIRED",
+    "NO WEB3 PROVIDER DETECTED",
+    "wallet_switchEthereumChain",
+    "wallet_addEthereumChain"
+  ],
+  "liquidity_v3": [
+    "getV3ClmmQuoteRatio",
+    "mintVvsV3LpPosition",
+    "LIQUIDITY ADDED ON CRONOS MAINNET",
+    "handleCrolanaRemoveLiquidity",
+    "collectVvsV3Fees",
+    "Simulated minting is disabled",
+    "/api/vvs/quote",
+    "/api/vvs/build-tx",
+    "api.dexscreener.com"
+  ],
+  "token_launch": [
+    "token-launch-deploy",
+    "DEPLOY TO CRONOS MAINNET",
+    "deployTokenLaunch",
+    "/api/token-launch/build-tx",
+    "abi_encode_token_constructor",
+    "TOKEN_FOUNDRY_ERC20_INIT_CODE"
+  ],
+  "wolfies_battle_cards": [
+    "WOLFIE_TYPE_SYSTEM",
+    "WOLFIE_TRAIT_TYPE_MAP",
+    "WOLFIE_SKIN_TRAITS_MAP",
+    "getWolfieTraitData",
+    "DEFAULT_STARTER_WOLFIE",
+    "0x719fdfb0ba006747a83438cc8900c8a2b35e0aff",
+    "User still dont have any Wolfie yet",
+    "Starter Wolfie #000",
+    "myBattleCardsStorage",
+    "myBattleCardsParty",
+    "party-cards-modal",
+    "tactical-arena-modal",
+    "battle-card-pc",
+    "battleWithPartyCard",
+    "TEST IN TACTICAL BATTLE",
+    "RivalRex"
+  ],
+  "smart_house_wallet_lock": [
+    "interiorType: 'smart-house'",
+    "interactive: 'smart-pc'",
+    "interactive: 'battle-card-pc'",
+    "interiorType: 'manager'"
+  ],
+  "other_systems": [
+    "interactive: 'token-launch'",
+    "interior-liquidity-pc",
+    "CHESS_SYMBOLS",
+    "chess-battle-ui",
+    "RONGOON",
+    "chess-level-modal",
+    "CASINO_SEEDS",
+    "casino-verify",
+    "FLIPSUITE",
+    "ai-studio-ui",
+    "mapEditorState",
+    "MAP_BUILDER_GRID_COLUMNS",
+    "customizer-ui",
+    "Jim's world sprite lab",
+    "ebisus",
+    "marketplace",
+    "dex-quote"
+  ]
+}
