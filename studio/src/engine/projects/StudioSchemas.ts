@@ -17,14 +17,30 @@ export interface StudioFieldSchema {
   max?: number;
 }
 
+export interface StudioCapabilities {
+  runtime: boolean;
+  graph: boolean;
+  export: boolean;
+  blockchain: boolean;
+  ai: boolean;
+  audio: boolean;
+}
+
 export interface StudioObjectSchema {
   kind: StudioObjectKind;
   title: string;
   fields: StudioFieldSchema[];
   graphRole: string;
+  capabilities: StudioCapabilities;
 }
 
-const schema = (kind: StudioObjectKind, title: string, graphRole: string, fields: StudioFieldSchema[]): StudioObjectSchema => ({ kind, title, graphRole, fields });
+const BLOCKCHAIN_KINDS = new Set<StudioObjectKind>(['network', 'token', 'economy', 'wallet', 'marketplace', 'nft-collection', 'character']);
+const AUDIO_KINDS = new Set<StudioObjectKind>(['audio', 'sound-zone', 'npc']);
+const AI_KINDS = new Set<StudioObjectKind>(['npc', 'ai-agent', 'automation', 'story', 'dialogue']);
+const schema = (kind: StudioObjectKind, title: string, graphRole: string, fields: StudioFieldSchema[]): StudioObjectSchema => ({
+  kind, title, graphRole, fields,
+  capabilities: { runtime: true, graph: true, export: true, blockchain: BLOCKCHAIN_KINDS.has(kind), ai: AI_KINDS.has(kind), audio: AUDIO_KINDS.has(kind) },
+});
 
 export const STUDIO_SCHEMAS: Record<StudioObjectKind, StudioObjectSchema> = {
   ui: schema('ui', 'UI Screen', 'screen', [

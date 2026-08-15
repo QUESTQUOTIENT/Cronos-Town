@@ -5,6 +5,7 @@
  * data rather than UI state: a studio edit is an edit to the object that ships.
  */
 import { ProjectGraph, type NodeKind } from './ProjectGraph';
+import { planPropagation } from './StudioPropagation';
 
 export type StudioObjectKind =
   | 'ui' | 'ui-component' | 'npc' | 'story' | 'dialogue' | 'cutscene' | 'quest' | 'world' | 'tile' | 'world-state'
@@ -98,16 +99,12 @@ export class StudioProject {
    */
   bindTokenToConsumers(tokenId: string): string[] {
     if (this.objects.get(tokenId)?.kind !== 'token') throw new Error(`Unknown token: ${tokenId}`);
-    const consumerKinds = new Set<StudioObjectKind>(['economy', 'marketplace', 'wallet', 'quest', 'npc']);
-    const changed: string[] = [];
-    for (const object of this.objects.values()) {
-      if (!consumerKinds.has(object.kind)) continue;
-      const references = [...new Set([...object.references, tokenId])];
-      const data = { ...object.data, currencyToken: tokenId };
-      this.upsert({ id: object.id, kind: object.kind, name: object.name, data, references });
-      changed.push(object.id);
+    const plan = planPropagation(this.list(), tokenId);
+    for (const change of plan.changes) {
+      const current = this.objects.get(change.id);
+      if (current) this.upsert({ id: change.id, kind: change.kind, name: current.name, data: change.data, references: change.references });
     }
-    return changed;
+    return plan.changes.map((change) => change.id);
   }
 
   /** Objects that will react when this object changes, in runtime dependency order. */

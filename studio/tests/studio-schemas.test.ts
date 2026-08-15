@@ -6,6 +6,8 @@ describe('StudioObject schemas', () => {
     expect(getStudioSchema('npc').fields.map((field) => field.key)).toContain('sprite');
     expect(getStudioSchema('token').graphRole).toBe('economy');
     expect(getStudioSchema('sound-zone').fields.find((field) => field.key === 'volume')?.widget).toBe('range');
+    expect(getStudioSchema('token').capabilities.blockchain).toBe(true);
+    expect(getStudioSchema('npc').capabilities.ai).toBe(true);
   });
 
   it('reports schema validation diagnostics without preventing drafts', () => {

@@ -105,11 +105,13 @@ export class Inspector {
     ];
 
     if (studioObject) {
+      const schema = getStudioSchema(studioObject.kind);
       sections.splice(1, 0, {
         title: 'Runtime Object',
         fields: [
-          { label: 'schema', value: getStudioSchema(studioObject.kind).title, tone: 'gold' },
-          { label: 'graph role', value: getStudioSchema(studioObject.kind).graphRole },
+          { label: 'schema', value: schema.title, tone: 'gold' },
+          { label: 'graph role', value: schema.graphRole },
+          { label: 'capabilities', value: Object.entries(schema.capabilities).filter(([, enabled]) => enabled).map(([name]) => name).join(' · '), tone: 'teal' },
           { label: 'updated', value: new Date(studioObject.updatedAt).toISOString() },
           ...Object.entries(studioObject.data).map(([key, value]) => ({
             label: key,
