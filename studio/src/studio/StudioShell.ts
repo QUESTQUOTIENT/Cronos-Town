@@ -408,6 +408,9 @@ export class StudioShell {
       case 'economy':
         this.renderEconomy(body);
         break;
+      case 'creator-workspace':
+        this.renderCreatorWorkspace(body);
+        break;
       case 'studio-objects':
         this.renderStudioObjects(body);
         break;
@@ -681,6 +684,25 @@ export class StudioShell {
     xp.innerHTML = `<span class="k">Flipsuite XP</span><span class="v">0</span>`;
     body.appendChild(xp);
     body.appendChild(this.status('info', 'Token Launch + Casino features mount here in the full build.'));
+  }
+
+  /** Single entry point for creator workflows; all destinations use the same object graph. */
+  private renderCreatorWorkspace(body: HTMLElement): void {
+    body.appendChild(this.status('good', 'CREATOR WORKSPACE · schema objects, governed transactions, runtime sessions, graph, and deterministic export.'));
+    const routes: Array<[string, string, string]> = [
+      ['WORLD', 'game-design', 'World, tiles, scenes, and graph'], ['STORY', 'game-design', 'Narrative graph and quests'],
+      ['NPCS', 'game-design', 'NPC objects and runtime state'], ['UI', 'ui-design', 'Visual canvas and UI components'],
+      ['AUDIO', 'assets', 'Audio zones and assets'], ['BLOCKCHAIN', 'game-design', 'Network manager and identities'],
+      ['ECONOMY', 'economy', 'Tokens and propagation'], ['NFTS', 'assets', 'NFT character pipeline'],
+      ['AI', 'ai', 'Agents and automation'], ['RUNTIME', 'scripting', 'Session, events, and reflection'],
+      ['TRANSACTIONS', 'game-design', 'Preview, approval, revisions'], ['GRAPH', 'game-design', 'Dependencies and effects'], ['EXPORT', 'game-design', 'Committed project export'],
+    ];
+    for (const [label, workspace, detail] of routes) {
+      const button = this.mk('button', 'ui-button'); button.textContent = `${label} · ${detail}`; button.style.width = '100%'; button.style.marginBottom = '4px';
+      button.addEventListener('click', () => { this.setWorkspace(workspace); }); body.appendChild(button);
+    }
+    const session = this.os.runtimeSession.snapshot();
+    body.appendChild(this.status('info', `Runtime session ${session.id} · branch ${session.branch} · revision ${session.revision ?? 'uncommitted'} · ${session.effects.length} effect(s).`));
   }
 
   /** The creator surface: all authored runtime objects live in StudioProject. */

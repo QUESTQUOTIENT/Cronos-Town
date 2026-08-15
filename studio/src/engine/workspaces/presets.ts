@@ -18,6 +18,7 @@ export const WORKSPACE_PRESETS: WorkspacePreset[] = [
   {
     id: 'game-design', name: 'Game Design',
     panels: [
+      { id: 'creator-workspace', title: 'Creator Workspace', type: 'creator-workspace' },
       { id: 'objects', title: 'Creator Control · Universal Objects', type: 'studio-objects' },
       { id: 'object-editor', title: 'Creator Control · Object Editor', type: 'studio-object-editor' },
       { id: 'network-manager', title: 'Creator Control · Network Manager', type: 'network-manager' },
