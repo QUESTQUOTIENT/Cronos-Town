@@ -420,6 +420,9 @@ export class StudioShell {
       case 'project-export':
         this.renderProjectExport(body);
         break;
+      case 'transaction-center':
+        this.renderTransactionCenter(body);
+        break;
       default:
         this.renderGeneric(body, type);
     }
@@ -809,6 +812,36 @@ export class StudioShell {
     });
     body.appendChild(this.labeled('IMPORT STUDIO SNAPSHOT', importer));
     body.appendChild(this.status('info', 'The exported ZIP includes the same canonical objects used here, at studio/project.json. Import accepts either that snapshot or a full StudioOS snapshot.'));
+  }
+
+  /** Governance command center: inspect/advance transaction lifecycle and revisions. */
+  private renderTransactionCenter(body: HTMLElement): void {
+    const transactions = this.os.transactions.all().slice().reverse();
+    body.appendChild(this.status('info', `${transactions.length} transaction(s) · ${this.os.transactions.branchesList().length} branches.`));
+    for (const tx of transactions) {
+      const row = this.mk('div', 'field');
+      row.innerHTML = `<span class="k">${tx.state.toUpperCase()} · ${tx.title}</span><span class="v">${tx.branch} · ${tx.intent}</span>`;
+      body.appendChild(row);
+      const actions = this.mk('div'); actions.style.cssText = 'display:flex; gap:4px; margin:3px 0 7px;';
+      if (tx.state === 'draft') {
+        const preview = this.mk('button', 'ui-button'); preview.textContent = 'PREVIEW'; preview.addEventListener('click', () => { this.os.transactions.preview(tx.id); this.render(); }); actions.appendChild(preview);
+      }
+      if (tx.state === 'preview' && tx.policies.includes('requires-approval')) {
+        const approve = this.mk('button', 'ui-button'); approve.textContent = 'APPROVE'; approve.addEventListener('click', () => { this.os.transactions.approve(tx.id); this.render(); }); actions.appendChild(approve);
+      }
+      if (['draft', 'preview', 'approved'].includes(tx.state)) {
+        const commit = this.mk('button', 'ui-button'); commit.textContent = 'COMMIT'; commit.addEventListener('click', () => { this.os.transactions.commit(tx.id); this.render(); }); actions.appendChild(commit);
+      }
+      if (tx.state === 'committed') {
+        const rollback = this.mk('button', 'ui-button'); rollback.textContent = 'ROLLBACK'; rollback.addEventListener('click', () => { this.os.transactions.rollback(tx.id, 'creator'); this.render(); }); actions.appendChild(rollback);
+      }
+      body.appendChild(actions);
+      if (tx.validation.length) body.appendChild(this.status('error', tx.validation.map((item) => item.message).join(' ')));
+      else body.appendChild(this.status('good', `Impact: ${Object.entries(tx.impactSummary).map(([kind, count]) => `${kind} ${count}`).join(', ') || 'none'} · ${tx.graphDiff.addedNodes.length} nodes added / ${tx.graphDiff.removedNodes.length} removed.`));
+    }
+    const revisions = this.os.transactions.revisionsList();
+    const history = this.mk('div', 'field'); history.innerHTML = `<span class="k">▸ Revision History</span><span class="v teal">${revisions.length}</span>`; body.appendChild(history);
+    for (const revision of revisions.slice(-8).reverse()) { const row = this.mk('div', 'field'); row.innerHTML = `<span class="k">${revision.id} · ${revision.branch}</span><span class="v">${revision.author}</span>`; body.appendChild(row); }
   }
 
   private labeled(label: string, control: HTMLElement): HTMLElement {
