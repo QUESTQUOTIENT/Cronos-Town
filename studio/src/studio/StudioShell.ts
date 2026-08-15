@@ -1158,6 +1158,12 @@ export class StudioShell {
     this.q('#sb-project').textContent = project?.name ?? '—';
     this.q('#sb-scene').textContent = scene?.name ?? '—';
     this.q('#sb-entities').textContent = String(this.entities.count);
+    const session = this.os.runtimeSession.snapshot();
+    const revisions = this.os.transactions.revisionsList();
+    this.q('#ctx-branch').textContent = session.branch;
+    this.q('#ctx-revision').textContent = session.revision ?? revisions[revisions.length - 1]?.id ?? '—';
+    this.q('#ctx-session').textContent = session.id;
+    this.q('#ctx-effects').textContent = String(session.effects.length);
     this.q('#project-name').textContent = project ? `${project.name} · ${project.settings.author || 'no author'}` : 'no project';
   }
 
