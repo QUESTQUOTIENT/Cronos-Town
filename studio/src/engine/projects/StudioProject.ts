@@ -99,7 +99,7 @@ export class StudioProject {
    */
   bindTokenToConsumers(tokenId: string): string[] {
     if (this.objects.get(tokenId)?.kind !== 'token') throw new Error(`Unknown token: ${tokenId}`);
-    const plan = planPropagation(this.list(), tokenId);
+    const plan = planPropagation(this.list(), tokenId, { strategy: 'transactional', force: true });
     for (const change of plan.changes) {
       const current = this.objects.get(change.id);
       if (current) this.upsert({ id: change.id, kind: change.kind, name: current.name, data: change.data, references: change.references });

@@ -11,6 +11,7 @@ import type { ProjectGraph } from '../projects/ProjectGraph';
 import type { AssetRegistry, AssetRecord } from '../assets/AssetRegistry';
 import type { StudioProject } from '../projects/StudioProject';
 import { getStudioSchema, validateStudioObject } from '../projects/StudioSchemas';
+import { runtimeIdentityFor } from '../projects/RuntimeIdentity';
 
 export interface InspectorField {
   label: string;
@@ -122,6 +123,8 @@ export class Inspector {
       });
     }
     if (studioObject) {
+      const identity = runtimeIdentityFor(studioObject);
+      sections.push({ title: 'Runtime Identity', fields: Object.entries(identity).filter(([, value]) => value !== undefined).map(([key, value]) => ({ label: key, value: String(value), tone: 'teal' as const })) });
       const diagnostics = validateStudioObject(studioObject);
       sections.push({
         title: 'Diagnostics',

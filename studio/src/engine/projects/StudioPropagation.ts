@@ -12,16 +12,28 @@ export interface PropagationChange {
   reason: string;
 }
 
+export type PropagationStrategy = 'immediate' | 'deferred' | 'transactional' | 'preview' | 'export-only';
+
 export interface PropagationContract {
   source: StudioObjectKind;
   targets: StudioObjectKind[];
+  /** Optional declarative guard; false means the target is not affected. */
+  condition?(source: StudioObject, target: StudioObject): boolean;
   /** Build a target patch. Contracts never mutate objects directly. */
   patch(source: StudioObject, target: StudioObject): PropagationChange | null;
+}
+
+export interface PropagationOptions {
+  strategy?: PropagationStrategy;
+  /** A force operation intentionally binds every compatible target. */
+  force?: boolean;
 }
 
 const tokenCurrencyContract: PropagationContract = {
   source: 'token',
   targets: ['economy', 'marketplace', 'wallet', 'quest', 'npc'],
+  // A consumer already bound to a different token is not silently rewritten.
+  condition(source, target) { return !target.data.currencyToken || target.data.currencyToken === source.id; },
   patch(source, target) {
     return {
       id: target.id, kind: target.kind,
@@ -49,17 +61,27 @@ const worldStateContract: PropagationContract = {
 
 export const STUDIO_PROPAGATION_CONTRACTS: PropagationContract[] = [tokenCurrencyContract, worldStateContract];
 
-export interface PropagationPlan { sourceId: string; changes: PropagationChange[]; }
-export function planPropagation(objects: StudioObject[], sourceId: string): PropagationPlan {
+export interface PropagationPlan {
+  sourceId: string;
+  strategy: PropagationStrategy;
+  changes: PropagationChange[];
+  /** Precomputed impact allows an inspector to render confirmation before mutation. */
+  impact: Record<string, number>;
+}
+export function planPropagation(objects: StudioObject[], sourceId: string, options: PropagationOptions = {}): PropagationPlan {
+  const strategy = options.strategy ?? 'transactional';
   const source = objects.find((object) => object.id === sourceId);
-  if (!source) return { sourceId, changes: [] };
+  if (!source) return { sourceId, strategy, changes: [], impact: {} };
   const changes: PropagationChange[] = [];
   for (const contract of STUDIO_PROPAGATION_CONTRACTS.filter((item) => item.source === source.kind)) {
     for (const target of objects) {
       if (!contract.targets.includes(target.kind) || target.id === source.id) continue;
+      if (!options.force && contract.condition && !contract.condition(source, target)) continue;
       const change = contract.patch(source, target);
       if (change) changes.push(change);
     }
   }
-  return { sourceId, changes };
+  const impact: Record<string, number> = {};
+  for (const change of changes) impact[change.kind] = (impact[change.kind] ?? 0) + 1;
+  return { sourceId, strategy, changes, impact };
 }

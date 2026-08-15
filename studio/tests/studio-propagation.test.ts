@@ -9,6 +9,14 @@ describe('Studio propagation contracts', () => {
     const plan = planPropagation([object('gold', 'token'), object('shop', 'npc'), object('market', 'marketplace')], 'gold');
     expect(plan.changes.map((change) => change.id)).toEqual(['shop', 'market']);
     expect(plan.changes[0].data.currencyToken).toBe('gold');
+    expect(plan.strategy).toBe('transactional');
+    expect(plan.impact).toEqual({ npc: 1, marketplace: 1 });
+  });
+
+  it('honors contract conditions unless a caller explicitly forces a migration', () => {
+    const objects = [object('gold', 'token'), object('legacy-shop', 'npc', { currencyToken: 'old-token' })];
+    expect(planPropagation(objects, 'gold', { strategy: 'preview' }).changes).toHaveLength(0);
+    expect(planPropagation(objects, 'gold', { force: true }).changes).toHaveLength(1);
   });
 
   it('only binds state-driven narrative consumers to world state', () => {
