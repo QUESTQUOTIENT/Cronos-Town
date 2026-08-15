@@ -576,6 +576,17 @@ export class StudioShell {
       }
     }
 
+    const transactions = this.mk('div', 'field');
+    transactions.innerHTML = `<span class="k">▸ Governed Transactions</span><span class="v teal">${this.os.transactions.all().length}</span>`;
+    body.appendChild(transactions);
+    for (const tx of this.os.transactions.all().slice(-8).reverse()) {
+      const row = this.mk('div', 'field');
+      row.innerHTML = `<span class="k">${tx.state.toUpperCase()} · ${tx.title}</span><span class="v">${tx.branch} · ${tx.intent}</span>`;
+      body.appendChild(row);
+    }
+    const revisions = this.os.transactions.revisionsList();
+    if (revisions.length) body.appendChild(this.status('good', `Active revision: ${revisions[revisions.length - 1].id} · branch ${revisions[revisions.length - 1].branch}`));
+
     const events = this.mk('div', 'field');
     events.innerHTML = `<span class="k">▸ Event Monitor (${this.os.eventMonitor.all().length})</span>`;
     body.appendChild(events);
