@@ -860,6 +860,13 @@ export class StudioShell {
         this.os.studioEditor.save({ id: screen.id, kind: 'ui', name: screen.name, data: { ...screen.data, components: next }, references: screen.references }); this.render();
       }); controls.appendChild(button);
     }
+    for (const [label, field] of [['W+', 'w'], ['H+', 'h']] as Array<[string, 'w' | 'h']>) {
+      const button = this.mk('button', 'ui-button'); button.textContent = label;
+      button.addEventListener('click', () => {
+        const next = components.map((item) => item.id === id ? { ...item, [field]: Math.min(field === 'w' ? 20 - Number(item.x ?? 0) : 14 - Number(item.y ?? 0), Number(item[field] ?? 1) + 1) } : item);
+        this.os.studioEditor.save({ id: screen.id, kind: 'ui', name: screen.name, data: { ...screen.data, components: next }, references: screen.references }); this.render();
+      }); controls.appendChild(button);
+    }
     const remove = this.mk('button', 'ui-button'); remove.textContent = 'REMOVE';
     remove.addEventListener('click', () => { this.os.studioEditor.save({ id: screen.id, kind: 'ui', name: screen.name, data: { ...screen.data, components: components.filter((item) => item.id !== id) }, references: screen.references }); this.render(); });
     controls.appendChild(remove); body.appendChild(controls);

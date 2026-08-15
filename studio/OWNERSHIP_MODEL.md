@@ -14,6 +14,6 @@ The first schema covers `ui`, `npc`, `story`, `quest`, `world`, `network`, `toke
 
 ## Export contract
 
-`StudioOS.snapshot()` includes `studio`, a `chronos-studio-project` v1 snapshot. Clients send that value as `studioProject` to `/api/export-project`. The generated archive contains the same snapshot at `studio/project.json` as well as the runtime export payload. This makes the exported game and the editable studio source travel together.
+`StudioOS.snapshot()` includes `studio`, a `chronos-studio-project` v1 snapshot. Clients send that value as `studioProject` to `/api/export-project`. The generated archive contains the same snapshot at `studio/project.json`, the runtime export payload, and the editable StudioOS source (`studio/src`, tests, and build configuration). This makes the exported game and the editable studio source travel together.
 
 This is a foundation, not a claim that every visual editor is complete. New panels should author these objects through `StudioProject`, and runtime systems should resolve their settings from these object IDs.

@@ -74,6 +74,18 @@ def build_project_zip(payload):
         if server_pkg.is_dir():
             for path in sorted(server_pkg.rglob("*.py")):
                 archive.write(path, path.relative_to(root).as_posix())
+        # A project export must contain both sides of the same project: the game
+        # runtime and the editable StudioOS source. Deliberately omit generated
+        # dependency/build directories so the archive stays portable and small.
+        studio_root = root / "studio"
+        if studio_root.is_dir():
+            allowed_root_files = {"index.html", "package.json", "package-lock.json", "tsconfig.json", "vite.config.ts", "vitest.config.ts", "OWNERSHIP_MODEL.md"}
+            for path in sorted(studio_root.rglob("*")):
+                if not path.is_file() or "node_modules" in path.parts or "dist" in path.parts:
+                    continue
+                relative = path.relative_to(studio_root)
+                if relative.parts[0] in {"src", "tests"} or path.name in allowed_root_files:
+                    archive.write(path, (Path("studio") / relative).as_posix())
         sprite_root = root / "sprites"
         if sprite_root.exists():
             for path in sorted(sprite_root.rglob("*")):
