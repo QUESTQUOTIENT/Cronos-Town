@@ -12,6 +12,7 @@ import type { AssetRegistry, AssetRecord } from '../assets/AssetRegistry';
 import type { StudioProject } from '../projects/StudioProject';
 import { getStudioSchema, validateStudioObject } from '../projects/StudioSchemas';
 import { runtimeIdentityFor } from '../projects/RuntimeIdentity';
+import type { RuntimeSession } from '../projects/RuntimeSession';
 
 export interface InspectorField {
   label: string;
@@ -38,6 +39,7 @@ export interface InspectorScope {
   assets: AssetRegistry;
   /** Canonical authored object store; makes this inspector universal. */
   studioProject?: StudioProject;
+  runtimeSession?: RuntimeSession;
   /** Optional: a history of events involving a target (for the "events" section). */
   eventsFor?: (id: string) => string[];
   /** Optional: undo/redo labels relevant to a target (for the "history" section). */
@@ -125,6 +127,12 @@ export class Inspector {
     if (studioObject) {
       const identity = runtimeIdentityFor(studioObject);
       sections.push({ title: 'Runtime Identity', fields: Object.entries(identity).filter(([, value]) => value !== undefined).map(([key, value]) => ({ label: key, value: String(value), tone: 'teal' as const })) });
+      const reflection = this.scope.runtimeSession?.reflect(studioObject, identity);
+      if (reflection) sections.push({ title: 'Runtime', fields: [
+        { label: 'health', value: String(reflection.health), tone: reflection.health === 'healthy' ? 'teal' : 'danger' },
+        { label: 'hot reload', value: String(reflection.hotReload) },
+        { label: 'effects', value: String(reflection.effectCount ?? 0) },
+      ] });
       const diagnostics = validateStudioObject(studioObject);
       sections.push({
         title: 'Diagnostics',

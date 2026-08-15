@@ -89,7 +89,7 @@ export class StudioShell {
     this.paletteList = this.q('#palette-list');
     this.eventLog = this.mk('div');
     this.eventLog.id = 'event-log';
-    this.inspector = new Inspector({ entities: this.entities, graph: this.os.graph, assets: this.os.assets, studioProject: this.os.studioProject });
+    this.inspector = new Inspector({ entities: this.entities, graph: this.os.graph, assets: this.os.assets, studioProject: this.os.studioProject, runtimeSession: this.os.runtimeSession });
 
     // Seed starter entities into the OS's bootstrapped scene (hierarchy demo).
     const scene = this.scenes.active;
