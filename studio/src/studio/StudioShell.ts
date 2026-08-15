@@ -55,6 +55,7 @@ export class StudioShell {
   private selectedEntity: number | null = null;
   private selectedNodeId: string | null = null;
   private selectedStudioObjectId: string | null = null;
+  private creatorStep = 0;
   private readonly inspector: Inspector;
   private readonly shortcuts = new ShortcutManager();
   private readonly focus = new FocusManager();
@@ -689,6 +690,17 @@ export class StudioShell {
   /** Single entry point for creator workflows; all destinations use the same object graph. */
   private renderCreatorWorkspace(body: HTMLElement): void {
     body.appendChild(this.status('good', 'CREATOR WORKSPACE · schema objects, governed transactions, runtime sessions, graph, and deterministic export.'));
+    const steps = ['Create world', 'Create first NPC', 'Create first quest', 'Choose network', 'Add token', 'Import NFT collection', 'Design UI', 'Add audio zone', 'Simulate', 'Export'];
+    const guide = this.mk('button', 'ui-button');
+    guide.textContent = this.creatorStep === 0 ? 'START CREATOR MODE' : `CREATOR MODE · ${this.creatorStep}/${steps.length}: ${steps[this.creatorStep - 1]}`;
+    guide.addEventListener('click', () => {
+      if (this.creatorStep === 0) { this.creatorStep = 1; }
+      else if (this.creatorStep === 1 && !this.os.studioProject.get('world-main')) this.saveSchemaTransaction({ id: 'world-main', kind: 'world', name: 'My World', data: { weather: 'clear' }, references: [] });
+      else this.creatorStep = Math.min(steps.length, this.creatorStep + 1);
+      this.render();
+    });
+    body.appendChild(guide);
+    if (this.creatorStep > 0) body.appendChild(this.status('info', `Next: ${steps[this.creatorStep - 1] ?? 'Project ready to export'}. Creator Mode creates governed StudioObjects and routes you to the relevant workspace.`));
     const routes: Array<[string, string, string]> = [
       ['WORLD', 'game-design', 'World, tiles, scenes, and graph'], ['STORY', 'game-design', 'Narrative graph and quests'],
       ['NPCS', 'game-design', 'NPC objects and runtime state'], ['UI', 'ui-design', 'Visual canvas and UI components'],
