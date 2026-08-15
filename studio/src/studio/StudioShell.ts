@@ -857,6 +857,23 @@ export class StudioShell {
     return group;
   }
 
+  /**
+   * Default visual edits enter the governed pipeline. Protected domains stop at
+   * preview for approval in Transaction Center; all other domains commit a new
+   * graph revision immediately after validation.
+   */
+  private saveSchemaTransaction(input: Omit<StudioObject, 'updatedAt'>): void {
+    const domains: Record<StudioObjectKind, Array<'narrative' | 'economy' | 'blockchain' | 'world' | 'ui' | 'audio' | 'ai' | 'runtime' | 'export'>> = {
+      ui: ['ui'], 'ui-component': ['ui'], npc: ['ai', 'runtime'], story: ['narrative'], dialogue: ['narrative'], cutscene: ['narrative'], quest: ['narrative'], world: ['world'], tile: ['world'], 'world-state': ['world', 'narrative'], network: ['blockchain'], token: ['blockchain', 'economy'], economy: ['economy'], wallet: ['blockchain'], marketplace: ['blockchain', 'economy'], 'nft-collection': ['blockchain'], character: ['blockchain', 'runtime'], audio: ['audio'], 'sound-zone': ['audio'], 'ai-agent': ['ai'], automation: ['ai', 'runtime'],
+    };
+    const transaction = this.os.transactions.draft({ title: `Save ${input.kind}: ${input.name}`, author: 'creator', domains: domains[input.kind], intent: 'modify' }, () => {
+      this.os.studioProject.upsert(input); return { [input.kind]: 1 };
+    });
+    this.os.transactions.preview(transaction.id);
+    const latest = this.os.transactions.all().find((item) => item.id === transaction.id);
+    if (latest && !latest.policies.includes('requires-approval')) this.os.transactions.commit(transaction.id);
+  }
+
   /** Schema-generated default editor; JSON is deliberately an advanced escape hatch. */
   private renderSchemaObjectEditor(body: HTMLElement, object: StudioObject): void {
     const schema = getStudioSchema(object.kind);
@@ -889,7 +906,7 @@ export class StudioShell {
         const value = controls.get(field.key)!.value;
         data[field.key] = field.widget === 'number' || field.widget === 'range' ? Number(value) : value;
       }
-      this.os.studioEditor.save({ id: object.id, kind: object.kind, name: name.value, data, references: refs.value.split(',').map((value) => value.trim()).filter(Boolean) });
+      this.saveSchemaTransaction({ id: object.id, kind: object.kind, name: name.value, data, references: refs.value.split(',').map((value) => value.trim()).filter(Boolean) });
       this.render();
     });
     body.appendChild(save);
