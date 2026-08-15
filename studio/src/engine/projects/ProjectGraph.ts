@@ -13,7 +13,8 @@ export type NodeKind =
   | 'project' | 'world' | 'map' | 'entity' | 'ui-screen' | 'panel' | 'component'
   | 'asset' | 'sprite' | 'tileset' | 'audio'
   | 'quest' | 'dialogue' | 'economy' | 'wallet' | 'token' | 'liquidity-pool'
-  | 'automation' | 'ai-agent' | 'plugin' | 'network' | 'nft-collection' | 'character';
+  | 'automation' | 'ai-agent' | 'plugin' | 'network' | 'nft-collection' | 'character'
+  | 'tile' | 'cutscene' | 'world-state' | 'marketplace' | 'sound-zone';
 
 export interface GraphNode {
   id: string;

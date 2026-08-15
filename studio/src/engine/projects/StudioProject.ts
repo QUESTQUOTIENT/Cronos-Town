@@ -7,8 +7,9 @@
 import { ProjectGraph, type NodeKind } from './ProjectGraph';
 
 export type StudioObjectKind =
-  | 'ui' | 'npc' | 'story' | 'quest' | 'world' | 'network' | 'token'
-  | 'economy' | 'nft-collection' | 'character' | 'audio' | 'automation';
+  | 'ui' | 'ui-component' | 'npc' | 'story' | 'dialogue' | 'cutscene' | 'quest' | 'world' | 'tile' | 'world-state'
+  | 'network' | 'token' | 'economy' | 'wallet' | 'marketplace' | 'nft-collection' | 'character'
+  | 'audio' | 'sound-zone' | 'ai-agent' | 'automation';
 
 export interface StudioObject {
   id: string;
@@ -28,9 +29,10 @@ export interface StudioProjectSnapshot {
 }
 
 const GRAPH_KIND: Record<StudioObjectKind, NodeKind> = {
-  ui: 'ui-screen', npc: 'entity', story: 'dialogue', quest: 'quest', world: 'world',
-  network: 'network', token: 'token', economy: 'economy', 'nft-collection': 'nft-collection',
-  character: 'character', audio: 'audio', automation: 'automation',
+  ui: 'ui-screen', 'ui-component': 'component', npc: 'entity', story: 'dialogue', dialogue: 'dialogue', cutscene: 'cutscene',
+  quest: 'quest', world: 'world', tile: 'tile', 'world-state': 'world-state', network: 'network', token: 'token',
+  economy: 'economy', wallet: 'wallet', marketplace: 'marketplace', 'nft-collection': 'nft-collection',
+  character: 'character', audio: 'audio', 'sound-zone': 'sound-zone', 'ai-agent': 'ai-agent', automation: 'automation',
 };
 
 function copy<T>(value: T): T {

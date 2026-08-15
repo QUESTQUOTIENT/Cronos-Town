@@ -23,6 +23,7 @@ import { SceneRuntime, SceneSerializer, SceneTransitions } from '../engine/scene
 import { ProjectManager } from '../engine/projects/ProjectManager';
 import { ProjectGraph } from '../engine/projects/ProjectGraph';
 import { StudioProject } from '../engine/projects/StudioProject';
+import { StudioObjectEditor } from '../engine/projects/StudioObjectEditor';
 import { AssetRegistry } from '../engine/assets/AssetRegistry';
 import { AssetImporter } from '../engine/assets/AssetImporter';
 import { WorkspaceManager } from '../engine/workspaces/WorkspaceManager';
@@ -55,6 +56,7 @@ export class StudioOS {
   readonly graph = new ProjectGraph();
   /** Canonical authored objects shared by the runtime, studio, and exporter. */
   readonly studioProject = new StudioProject(this.graph);
+  readonly studioEditor = new StudioObjectEditor(this.studioProject, this.commands);
   readonly assets: AssetRegistry;
   readonly importer: AssetImporter;
   readonly workspaces: WorkspaceManager;

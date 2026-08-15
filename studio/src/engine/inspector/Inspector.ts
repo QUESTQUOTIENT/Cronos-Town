@@ -9,6 +9,7 @@
 import type { EntityManager, Component } from '../entity/EntityManager';
 import type { ProjectGraph } from '../projects/ProjectGraph';
 import type { AssetRegistry, AssetRecord } from '../assets/AssetRegistry';
+import type { StudioProject } from '../projects/StudioProject';
 
 export interface InspectorField {
   label: string;
@@ -33,6 +34,8 @@ export interface InspectorScope {
   entities: EntityManager;
   graph: ProjectGraph;
   assets: AssetRegistry;
+  /** Canonical authored object store; makes this inspector universal. */
+  studioProject?: StudioProject;
   /** Optional: a history of events involving a target (for the "events" section). */
   eventsFor?: (id: string) => string[];
   /** Optional: undo/redo labels relevant to a target (for the "history" section). */
@@ -76,6 +79,7 @@ export class Inspector {
     const node = this.scope.graph.get(id);
     if (!node) return null;
     const analysis = this.scope.graph.analyze(id);
+    const studioObject = this.scope.studioProject?.get(id);
     const sections: InspectorSection[] = [
       {
         title: 'Properties',
@@ -98,6 +102,21 @@ export class Inspector {
         ],
       },
     ];
+
+    if (studioObject) {
+      sections.splice(1, 0, {
+        title: 'Runtime Object',
+        fields: [
+          { label: 'studio type', value: studioObject.kind, tone: 'gold' },
+          { label: 'updated', value: new Date(studioObject.updatedAt).toISOString() },
+          ...Object.entries(studioObject.data).map(([key, value]) => ({
+            label: key,
+            value: typeof value === 'object' ? JSON.stringify(value) : String(value),
+            tone: 'teal' as const,
+          })),
+        ],
+      });
+    }
 
     // Universal inspector: history + events when the scope provides them.
     const history = this.scope.historyFor?.(id);

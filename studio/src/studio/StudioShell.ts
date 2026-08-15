@@ -11,13 +11,14 @@
  * It is intentionally the one place allowed to touch `document` directly.
  */
 import type { EventBus } from '../engine/events/EventBus';
+import type { CommandContext } from '../engine/commands/Command';
 import type { EntityManager, Component } from '../engine/entity/EntityManager';
 import type { SystemRunner } from '../engine/entity/SystemRunner';
 import type { SceneManager } from '../engine/scenes/SceneManager';
 import type { ProjectManager } from '../engine/projects/ProjectManager';
 import type { WorkspaceManager } from '../engine/workspaces/WorkspaceManager';
 import type { StudioOS } from './StudioOS';
-import type { StudioObjectKind } from '../engine/projects/StudioProject';
+import type { StudioObjectKind, StudioProject } from '../engine/projects/StudioProject';
 import { layoutDock, simpleRowDock } from '../ui/layout';
 import { StudioColors } from '../ui/theme';
 import { SPRITE_PRESETS } from '../features/sprite-lab/presets';
@@ -86,7 +87,7 @@ export class StudioShell {
     this.paletteList = this.q('#palette-list');
     this.eventLog = this.mk('div');
     this.eventLog.id = 'event-log';
-    this.inspector = new Inspector({ entities: this.entities, graph: this.os.graph, assets: this.os.assets });
+    this.inspector = new Inspector({ entities: this.entities, graph: this.os.graph, assets: this.os.assets, studioProject: this.os.studioProject });
 
     // Seed starter entities into the OS's bootstrapped scene (hierarchy demo).
     const scene = this.scenes.active;
@@ -282,14 +283,16 @@ export class StudioShell {
   }
 
   private undo(): void {
-    if (this.os.commands.undo({ world: this.entities })) {
+    const context: CommandContext & { studioProject: StudioProject } = { world: this.entities, studioProject: this.os.studioProject };
+    if (this.os.commands.undo(context)) {
       this.bus.emit('editor:history-snapshot', {});
       this.render();
     }
   }
 
   private redo(): void {
-    if (this.os.commands.redo({ world: this.entities })) {
+    const context: CommandContext & { studioProject: StudioProject } = { world: this.entities, studioProject: this.os.studioProject };
+    if (this.os.commands.redo(context)) {
       this.bus.emit('editor:history-snapshot', {});
       this.render();
     }
@@ -643,7 +646,7 @@ export class StudioShell {
 
   /** The creator surface: all authored runtime objects live in StudioProject. */
   private renderStudioObjects(body: HTMLElement): void {
-    const kinds: StudioObjectKind[] = ['ui', 'npc', 'story', 'quest', 'world', 'network', 'token', 'economy', 'nft-collection', 'character', 'audio', 'automation'];
+    const kinds: StudioObjectKind[] = ['ui', 'ui-component', 'npc', 'story', 'dialogue', 'cutscene', 'quest', 'world', 'tile', 'world-state', 'network', 'token', 'economy', 'wallet', 'marketplace', 'nft-collection', 'character', 'audio', 'sound-zone', 'ai-agent', 'automation'];
     const create = this.mk('select') as HTMLSelectElement;
     for (const kind of kinds) {
       const option = document.createElement('option');
@@ -661,7 +664,7 @@ export class StudioShell {
         : kind === 'ui' ? { layout: 'gba-20x14', components: [], theme: 'gba-dark' }
           : kind === 'audio' ? { music: '', ambience: '', volumeGroup: 'world', triggers: [] }
             : kind === 'quest' ? { objectives: [], rewards: [], consequences: [] } : {};
-      this.os.studioProject.upsert({ id, kind, name: `New ${kind}`, data, references: [] });
+      this.os.studioEditor.save({ id, kind, name: `New ${kind}`, data, references: [] });
       this.selectedStudioObjectId = id;
       this.selectedNodeId = id;
       this.bus.emit('studio:object-created', { id, kind });
@@ -705,7 +708,7 @@ export class StudioShell {
     save.addEventListener('click', () => {
       try {
         const parsed = JSON.parse(data.value) as Record<string, unknown>;
-        this.os.studioProject.upsert({ id: object.id, kind: object.kind, name: name.value, data: parsed, references: refs.value.split(',').map((value) => value.trim()).filter(Boolean) });
+        this.os.studioEditor.save({ id: object.id, kind: object.kind, name: name.value, data: parsed, references: refs.value.split(',').map((value) => value.trim()).filter(Boolean) });
         this.bus.emit('studio:object-updated', { id: object.id, kind: object.kind });
         this.render();
       } catch {
@@ -714,7 +717,7 @@ export class StudioShell {
     });
     const remove = this.mk('button', 'ui-button');
     remove.textContent = 'DELETE OBJECT';
-    remove.addEventListener('click', () => { this.os.studioProject.remove(object.id); this.selectedStudioObjectId = null; this.selectedNodeId = null; this.render(); });
+    remove.addEventListener('click', () => { this.os.studioEditor.remove(object.id); this.selectedStudioObjectId = null; this.selectedNodeId = null; this.render(); });
     body.append(this.labeled('NAME', name), this.labeled('REFERENCES', refs), this.labeled('RUNTIME DATA', data), save, remove);
   }
 
