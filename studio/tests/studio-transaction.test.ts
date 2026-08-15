@@ -14,7 +14,7 @@ describe('StudioTransactionEngine', () => {
     });
     expect(project.get('chapter-1')).toBeUndefined();
     expect(tx.graphDiff.addedNodes).toEqual(['chapter-1']);
-    expect(transactions.preview(tx.id)?.state).toBe('previewed');
+    expect(transactions.preview(tx.id)?.state).toBe('preview');
     expect(transactions.commit(tx.id)?.state).toBe('committed');
     expect(project.get('chapter-1')?.name).toBe('Chapter 1');
     expect(transactions.revisionsList()[0].objectChanges).toContain('chapter-1');
@@ -27,7 +27,8 @@ describe('StudioTransactionEngine', () => {
       project.configureNetwork('net', 'Net', { chainId: 1, rpcUrl: 'https://rpc.example', currency: 'ETH', gasToken: 'ETH' }); return { network: 1 };
     });
     expect(transactions.commit(tx.id)).toBeUndefined();
-    expect(transactions.commit(tx.id, true)?.state).toBe('committed');
+    transactions.preview(tx.id); transactions.approve(tx.id);
+    expect(transactions.commit(tx.id)?.state).toBe('committed');
     const rollback = transactions.rollback(tx.id, 'creator');
     expect(rollback?.state).toBe('committed');
     expect(project.get('net')).toBeUndefined();
