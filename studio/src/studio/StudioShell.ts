@@ -764,7 +764,7 @@ export class StudioShell {
     save.addEventListener('click', () => {
       try {
         const id = `network-${network.options[network.selectedIndex].textContent!.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-        this.os.studioProject.configureNetwork(id, network.options[network.selectedIndex].textContent!, { chainId: Number(chainId.value), rpcUrl: rpc.value, currency: currency.value, gasToken: currency.value });
+        this.os.studioEditor.configureNetwork(id, network.options[network.selectedIndex].textContent!, { chainId: Number(chainId.value), rpcUrl: rpc.value, currency: currency.value, gasToken: currency.value });
         this.selectedStudioObjectId = id; this.selectedNodeId = id; this.render();
       } catch (error) { body.appendChild(this.status('error', error instanceof Error ? error.message : 'Could not save network.')); }
     });
@@ -994,8 +994,7 @@ export class StudioShell {
     save.addEventListener('click', () => {
       try {
         const tokenId = `token-${(symbol.value || 'currency').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-        this.os.studioProject.configureToken(tokenId, symbol.value || 'Game Currency', { contract: contract.value, networkId: network.value, decimals: Number(decimals.value), symbol: symbol.value || 'TOKEN' });
-        const changed = this.os.studioProject.bindTokenToConsumers(tokenId);
+        const { consumers: changed } = this.os.studioEditor.createTokenAndBind(tokenId, symbol.value || 'Game Currency', { contract: contract.value, networkId: network.value, decimals: Number(decimals.value), symbol: symbol.value || 'TOKEN' });
         body.appendChild(this.status('good', `Token linked to ${changed.length} runtime consumers: ${changed.join(', ') || 'none yet'}.`));
         this.selectedStudioObjectId = tokenId; this.selectedNodeId = tokenId; this.render();
       } catch (error) { body.appendChild(this.status('error', error instanceof Error ? error.message : 'Could not wire token.')); }

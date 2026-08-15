@@ -2,7 +2,7 @@
  * in the same undo/redo timeline as entity and scene edits. */
 import type { Command, CommandContext } from '../commands/Command';
 import { CommandStack } from '../commands/Command';
-import { StudioProject, type StudioObject } from './StudioProject';
+import { StudioProject, type StudioObject, type StudioProjectSnapshot } from './StudioProject';
 
 export interface StudioObjectCommandContext extends CommandContext {
   studioProject: StudioProject;
@@ -29,6 +29,14 @@ class UpsertStudioObjectCommand implements Command {
   }
 }
 
+/** A transaction for operations that update several linked objects at once. */
+class RestoreStudioProjectCommand implements Command {
+  readonly type = 'studio-project.transaction';
+  constructor(readonly label: string, private readonly before: StudioProjectSnapshot, private readonly after: StudioProjectSnapshot) {}
+  execute(ctx: CommandContext): void { (ctx as StudioObjectCommandContext).studioProject.restore(this.after); }
+  undo(ctx: CommandContext): void { (ctx as StudioObjectCommandContext).studioProject.restore(this.before); }
+}
+
 class RemoveStudioObjectCommand implements Command {
   readonly type = 'studio-object.remove';
   readonly label: string;
@@ -52,4 +60,27 @@ export class StudioObjectEditor {
     return this.project.get(input.id) as StudioObject;
   }
   remove(id: string): void { this.commands.execute(new RemoveStudioObjectCommand(id), this.context()); }
+
+  configureNetwork(id: string, name: string, config: { chainId: number; rpcUrl: string; explorer?: string; currency: string; gasToken: string }): StudioObject {
+    return this.transaction(`Configure network: ${name}`, () => this.project.configureNetwork(id, name, config), id);
+  }
+
+  createTokenAndBind(id: string, name: string, config: { contract: string; networkId: string; decimals: number; symbol: string }): { token: StudioObject; consumers: string[] } {
+    const before = this.project.snapshot();
+    const token = this.project.configureToken(id, name, config);
+    const consumers = this.project.bindTokenToConsumers(id);
+    const after = this.project.snapshot();
+    this.project.restore(before);
+    this.commands.execute(new RestoreStudioProjectCommand(`Create token and wire economy: ${name}`, before, after), this.context());
+    return { token: this.project.get(token.id) as StudioObject, consumers };
+  }
+
+  private transaction(label: string, operation: () => StudioObject, id: string): StudioObject {
+    const before = this.project.snapshot();
+    operation();
+    const after = this.project.snapshot();
+    this.project.restore(before);
+    this.commands.execute(new RestoreStudioProjectCommand(label, before, after), this.context());
+    return this.project.get(id) as StudioObject;
+  }
 }

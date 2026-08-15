@@ -21,4 +21,17 @@ describe('StudioObjectEditor', () => {
     commands.undo({ world: {}, studioProject: project });
     expect(project.get('npc-ada')?.data).toEqual({ portrait: 'ada.png' });
   });
+
+  it('makes network and economy propagation one undoable transaction', () => {
+    const commands = new CommandStack();
+    const project = new StudioProject(new ProjectGraph(), () => 1);
+    const editor = new StudioObjectEditor(project, commands);
+    editor.configureNetwork('net', 'Testnet', { chainId: 1, rpcUrl: 'https://rpc.example', currency: 'ETH', gasToken: 'ETH' });
+    editor.save({ id: 'shop', kind: 'npc', name: 'Shop', data: {}, references: [] });
+    editor.createTokenAndBind('gold', 'Gold', { contract: '0xabc', networkId: 'net', decimals: 18, symbol: 'GOLD' });
+    expect(project.get('shop')?.data.currencyToken).toBe('gold');
+    commands.undo({ world: {}, studioProject: project });
+    expect(project.get('gold')).toBeUndefined();
+    expect(project.get('shop')?.data.currencyToken).toBeUndefined();
+  });
 });
