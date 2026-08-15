@@ -1,6 +1,12 @@
 """server/config.py — runtime constants, chain/contract data, and static tables."""
+import os
 import secrets
 from pathlib import Path
+
+# Production CORS policy. Configure exact origins as a comma-separated value;
+# Arena preview hosts are recognized separately by the HTTP layer.
+ALLOWED_ORIGINS = {origin.strip() for origin in os.getenv("CRONOS_ALLOWED_ORIGINS", "").split(",") if origin.strip()}
+MAX_REQUEST_BYTES = int(os.getenv("CRONOS_MAX_REQUEST_BYTES", str(2 * 1024 * 1024)))
 
 # Repo root (parent of the `server/` package). Used for exports/sprites/index.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

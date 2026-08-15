@@ -2,8 +2,11 @@
 rate limit and dispatches each route to its feature module. No feature logic
 lives here."""
 import json
+import re
 import urllib.parse
 from http.server import SimpleHTTPRequestHandler
+
+from .config import ALLOWED_ORIGINS, MAX_REQUEST_BYTES
 
 from .rpc import proxy_rpc_payload
 from .security import check_rate_limit
@@ -53,14 +56,30 @@ GET_ROUTES = {
 
 
 class AppHandler(SimpleHTTPRequestHandler):
+    def _allowed_origin(self):
+        origin = self.headers.get("Origin", "")
+        # Local development and Arena's ephemeral HTTPS preview hosts are safe
+        # browser origins; production deployments must configure exact origins.
+        preview = re.match(r"^https://\d+-[a-zA-Z0-9-]+\.e2b\.app$", origin)
+        if origin in ALLOWED_ORIGINS or preview or origin in {"http://localhost:5173", "http://127.0.0.1:5173"}:
+            return origin
+        return None
+
     def _send_cors_headers(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
-        self.send_header("Access-Control-Allow-Headers", "*")
-        self.send_header("Access-Control-Max-Age", "86400")
+        origin = self._allowed_origin()
+        if origin:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Credentials", "true")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+            self.send_header("Access-Control-Max-Age", "86400")
 
     def do_OPTIONS(self):
-        self.send_response(200)
+        if self.headers.get("Origin") and not self._allowed_origin():
+            self.send_error(403, "Origin is not allowed.")
+            return
+        self.send_response(204)
         self._send_cors_headers()
         self.end_headers()
 
@@ -89,7 +108,9 @@ class AppHandler(SimpleHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
             raise ValueError("Invalid Content-Length.")
-        return self.rfile.read(max(0, length))
+        if length < 0 or length > MAX_REQUEST_BYTES:
+            raise ValueError(f"Request body exceeds the {MAX_REQUEST_BYTES} byte limit.")
+        return self.rfile.read(length)
 
     def do_POST(self):
         client_ip = self.client_address[0]
