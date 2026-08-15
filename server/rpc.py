@@ -3,6 +3,8 @@ import json
 import re
 import time
 import urllib.parse
+
+from .sanitize import sanitize_nft_metadata
 import urllib.request
 
 from .config import BLOCKSCOUT_API, CRONOS_RPC_ENDPOINTS, RPC_UPSTREAM
@@ -168,7 +170,7 @@ def scan_nfts(address, contract_filter):
     tokens = []
     for item in holdings.values():
         item["metadataUrl"] = token_uri(item["contract"], item["tokenId"])
-        tokens.append({"token": item})
+        tokens.append({"token": sanitize_nft_metadata(item)})
     return tokens
 
 

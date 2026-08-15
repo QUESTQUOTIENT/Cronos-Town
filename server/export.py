@@ -33,6 +33,8 @@ def build_project_zip(payload):
             raw = base64.b64decode(encoded, validate=True)
         except Exception as error:
             raise ValueError(f"Invalid PNG data for {hint}: {error}")
+        if not raw.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise ValueError("Custom image data is not a valid PNG.")
         if len(raw) > 8 * 1024 * 1024:
             raise ValueError("A custom PNG is larger than 8 MB.")
         counter += 1
