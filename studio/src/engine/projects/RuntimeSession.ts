@@ -29,6 +29,9 @@ export class RuntimeSession {
     const effects = subscriptions.route(event).map((subscription) => this.createEffect(event, subscription));
     this.effects.push(...effects); return effects.map((effect) => ({ ...effect, payload: { ...effect.payload } }));
   }
+  reflect(object: StudioObject, identity: RuntimeIdentity): Record<string, unknown> | undefined {
+    return this.adapters.get(object.kind)?.reflect(object, identity);
+  }
   process(objects: StudioObject[]): RuntimeEffect[] {
     const byId = new Map(objects.map((object) => [object.id, object]));
     for (const effect of this.effects.filter((item) => item.status === 'queued')) {

@@ -27,6 +27,7 @@ import { StudioObjectEditor } from '../engine/projects/StudioObjectEditor';
 import { StudioTransactionEngine } from '../engine/projects/StudioTransaction';
 import { RuntimeEventBus, StudioSubscriptionEngine } from '../engine/projects/StudioSubscriptions';
 import { RuntimeSession } from '../engine/projects/RuntimeSession';
+import { createDefaultRuntimeAdapters } from '../engine/projects/RuntimeAdapters';
 import { AssetRegistry } from '../engine/assets/AssetRegistry';
 import { AssetImporter } from '../engine/assets/AssetImporter';
 import { WorkspaceManager } from '../engine/workspaces/WorkspaceManager';
@@ -97,6 +98,7 @@ export class StudioOS {
 
   constructor(options: StudioOSOptions = {}) {
     const now = options.now ?? (() => Date.now());
+    for (const adapter of createDefaultRuntimeAdapters()) this.runtimeSession.registerAdapter(adapter);
     this.projects = new ProjectManager(this.scenes, { now });
     this.assets = new AssetRegistry(now);
     this.importer = new AssetImporter(this.assets);
